@@ -1,0 +1,203 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { supabase, Student } from '@/lib/supabase'
+import StudentCard from '@/components/StudentCard'
+
+export default function StudentsPage() {
+  const [students, setStudents] = useState<Student[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formData, setFormData] = useState<Partial<Student>>({
+    name: '',
+    email: '',
+    student_id: '',
+    major: '',
+  })
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    fetchStudents()
+  }, [])
+
+  const fetchStudents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('students')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setStudents(data || [])
+    } catch (error) {
+      console.error('Error fetching students:', error)
+      setMessage('Failed to load students')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!formData.name || !formData.email || !formData.student_id) {
+      setMessage('Please fill in all required fields')
+      return
+    }
+
+    try {
+      if (editingId) {
+        const { error } = await supabase
+          .from('students')
+          .update(formData)
+          .eq('id', editingId)
+
+        if (error) throw error
+        setMessage('✓ Student updated successfully!')
+      } else {
+        const { error } = await supabase
+          .from('students')
+          .insert([formData])
+
+        if (error) throw error
+        setMessage('✓ Student added successfully!')
+      }
+
+      setFormData({ name: '', email: '', student_id: '', major: '' })
+      setEditingId(null)
+      setShowForm(false)
+      fetchStudents()
+    } catch (error) {
+      console.error('Error saving student:', error)
+      setMessage('Failed to save student')
+    }
+  }
+
+  const handleEdit = (item: Student) => {
+    setFormData(item)
+    setEditingId(item.id)
+    setShowForm(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this student?')) {
+      try {
+        const { error } = await supabase
+          .from('students')
+          .delete()
+          .eq('id', id)
+
+        if (error) throw error
+        setMessage('✓ Student deleted successfully!')
+        fetchStudents()
+      } catch (error) {
+        console.error('Error deleting student:', error)
+        setMessage('Failed to delete student')
+      }
+    }
+  }
+
+  return (
+    <main className="container">
+      <div className="flex-between mb-6">
+        <h1 className="text-3xl font-bold">Student Records</h1>
+        <button
+          onClick={() => {
+            setShowForm(!showForm)
+            setEditingId(null)
+            setFormData({ name: '', email: '', student_id: '', major: '' })
+          }}
+          className="btn btn-primary"
+        >
+          {showForm ? '✕ Cancel' : '+ Add Student'}
+        </button>
+      </div>
+
+      {message && (
+        <div className={`alert ${message.includes('✓') ? 'alert-success' : 'alert-danger'}`}>
+          {message}
+        </div>
+      )}
+
+      {showForm && (
+        <div className="card mb-6">
+          <div className="card-header">
+            <h3 className="card-title">{editingId ? 'Edit Student' : 'Add New Student'}</h3>
+          </div>
+          <form onSubmit={handleSubmit} className="form">
+            <div className="grid grid-2">
+              <div className="form-group">
+                <label className="form-label">Name *</label>
+                <input
+                  type="text"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="form-input"
+                  placeholder="Full name"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Student ID *</label>
+                <input
+                  type="text"
+                  value={formData.student_id || ''}
+                  onChange={(e) => setFormData({ ...formData, student_id: e.target.value })}
+                  className="form-input"
+                  placeholder="e.g., STU001234"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Email *</label>
+                <input
+                  type="email"
+                  value={formData.email || ''}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="form-input"
+                  placeholder="student@university.edu"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Major</label>
+                <input
+                  type="text"
+                  value={formData.major || ''}
+                  onChange={(e) => setFormData({ ...formData, major: e.target.value })}
+                  className="form-input"
+                  placeholder="e.g., Computer Science"
+                />
+              </div>
+            </div>
+            <button type="submit" className="btn btn-primary">
+              {editingId ? 'Update Student' : 'Add Student'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex-center p-8">
+          <div className="spinner"></div>
+        </div>
+      ) : students.length === 0 ? (
+        <div className="card p-8 text-center">
+          <p className="text-secondary">No students found. Create one to get started!</p>
+        </div>
+      ) : (
+        <div className="grid grid-3">
+          {students.map((s) => (
+            <StudentCard
+              key={s.id}
+              student={s}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+          ))}
+        </div>
+      )}
+    </main>
+  )
+}
