@@ -17,6 +17,10 @@ interface Staff {
   created_at?: string
 }
 
+interface StaffFormData extends Partial<Staff> {
+  password?: string
+}
+
 export default function StaffPage() {
   const { user } = useAuth()
   const router = useRouter()
@@ -24,12 +28,13 @@ export default function StaffPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [formData, setFormData] = useState<Partial<Staff>>({
+  const [formData, setFormData] = useState<StaffFormData>({
     name: '',
     email: '',
     role: 'Professor',
     office_location: '',
     phone: '',
+    password: '',
   })
   const [message, setMessage] = useState('')
 

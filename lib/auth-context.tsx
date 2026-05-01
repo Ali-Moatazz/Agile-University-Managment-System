@@ -14,7 +14,7 @@ interface AuthContextType {
   user: AuthUser | null
   loading: boolean
   login: (email: string, password: string, role: string) => Promise<void>
-  signup: (email: string, password: string, fullName: string, role: string) => Promise<void>
+  createAccount: (email: string, password: string, fullName: string, role: string, adminId: string) => Promise<void>
   logout: () => void
 }
 
@@ -55,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      // Try to fetch user from Supabase
+      // Fetch user from Supabase only (no localStorage fallback)
       const { data, error } = await supabase
         .from('users')
         .select('id, email, full_name, role')
@@ -78,22 +78,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(authUser)
       localStorage.setItem('unimanage_user', JSON.stringify(authUser))
     } catch (error) {
-      // Fallback: Try localStorage if Supabase fails
-      const savedUsers = localStorage.getItem('registered_users')
-      if (savedUsers) {
-        const users = JSON.parse(savedUsers)
-        const foundUser = users.find((u: any) => u.email === email && u.password === password)
-        if (foundUser) {
-          setUser(foundUser)
-          localStorage.setItem('unimanage_user', JSON.stringify(foundUser))
-          return
-        }
-      }
       throw error instanceof Error ? error : new Error('Login failed. Please check your credentials.')
     }
   }
 
-  const signup = async (email: string, password: string, fullName: string, role: string) => {
+  const createAccount = async (email: string, password: string, fullName: string, role: string, adminId: string) => {
     if (!email || !password || !fullName) {
       throw new Error('All fields are required')
     }
@@ -103,6 +92,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      // Verify admin exists
+      const { data: adminUser } = await supabase
+        .from('users')
+        .select('id, role')
+        .eq('id', adminId)
+        .single()
+
+      if (!adminUser || adminUser.role !== 'admin') {
+        throw new Error('Only admins can create accounts')
+      }
+
       // Check if user already exists
       const { data: existingUser } = await supabase
         .from('users')
@@ -133,36 +133,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Failed to create account. Please try again.')
       }
 
-      const authUser: AuthUser = {
-        id: data.id,
-        email: data.email,
-        full_name: data.full_name,
-        role: data.role
-      }
-
-      setUser(authUser)
-      localStorage.setItem('unimanage_user', JSON.stringify(authUser))
+      return data
     } catch (error) {
-      // Fallback to localStorage
-      const savedUsers = localStorage.getItem('registered_users') || '[]'
-      const users = JSON.parse(savedUsers)
-      
-      if (users.find((u: any) => u.email === email)) {
-        throw new Error('Email already registered')
-      }
-
-      const newUser: AuthUser = {
-        id: `user_${Date.now()}`,
-        email,
-        full_name: fullName,
-        role: role as AuthUser['role']
-      }
-
-      users.push({ ...newUser, password })
-      localStorage.setItem('registered_users', JSON.stringify(users))
-      
-      setUser(newUser)
-      localStorage.setItem('unimanage_user', JSON.stringify(newUser))
+      throw error instanceof Error ? error : new Error('Failed to create account')
     }
   }
 
@@ -172,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, createAccount, logout }}>
       {children}
     </AuthContext.Provider>
   )

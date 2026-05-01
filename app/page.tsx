@@ -6,12 +6,10 @@ import { useAuth } from '@/lib/auth-context'
 
 export default function AuthPage() {
   const router = useRouter()
-  const { user, login, signup } = useAuth()
-  const [isLogin, setIsLogin] = useState(true)
+  const { user, login } = useAuth()
   const [selectedRole, setSelectedRole] = useState<'admin' | 'doctor' | 'ta' | 'student'>('student')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [fullName, setFullName] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -33,11 +31,7 @@ export default function AuthPage() {
     setLoading(true)
 
     try {
-      if (isLogin) {
-        await login(email, password, selectedRole)
-      } else {
-        await signup(email, password, fullName, selectedRole)
-      }
+      await login(email, password, selectedRole)
 
       // Redirect based on role
       if (selectedRole === 'admin') {
@@ -77,11 +71,11 @@ export default function AuthPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '1.5rem', borderRadius: '0.75rem', backdropFilter: 'blur(10px)' }}>
                 <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem' }}>✨ For Everyone</h3>
-                <p style={{ opacity: 0.9, fontSize: '0.95rem' }}>Join as Admin, Faculty, TA, or Student and access role-specific features</p>
+                <p style={{ opacity: 0.9, fontSize: '0.95rem' }}>Admin, Faculty, TA, or Student - Access role-specific features</p>
               </div>
               <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '1.5rem', borderRadius: '0.75rem', backdropFilter: 'blur(10px)' }}>
                 <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem' }}>🔒 Secure Access</h3>
-                <p style={{ opacity: 0.9, fontSize: '0.95rem' }}>Role-based access control ensures you only see relevant information</p>
+                <p style={{ opacity: 0.9, fontSize: '0.95rem' }}>Only admins can create accounts for secure account management</p>
               </div>
               <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '1.5rem', borderRadius: '0.75rem', backdropFilter: 'blur(10px)' }}>
                 <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem' }}>⚡ Features</h3>
@@ -98,40 +92,10 @@ export default function AuthPage() {
 
           {/* Right Side - Auth Form */}
           <div style={{ background: 'white', borderRadius: '1rem', padding: '2rem', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
-            {/* Tab Switch */}
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
-              <button
-                onClick={() => setIsLogin(true)}
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  border: 'none',
-                  background: isLogin ? '#667eea' : '#e5e7eb',
-                  color: isLogin ? 'white' : '#6b7280',
-                  borderRadius: '0.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s'
-                }}
-              >
-                Login
-              </button>
-              <button
-                onClick={() => setIsLogin(false)}
-                style={{
-                  flex: 1,
-                  padding: '0.75rem',
-                  border: 'none',
-                  background: !isLogin ? '#667eea' : '#e5e7eb',
-                  color: !isLogin ? 'white' : '#6b7280',
-                  borderRadius: '0.5rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s'
-                }}
-              >
-                Sign Up
-              </button>
+            {/* Auth Title */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>Login to UniManage</h2>
+              <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>Enter your credentials to access the system</p>
             </div>
 
             {error && (
@@ -148,27 +112,6 @@ export default function AuthPage() {
             )}
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              {/* Full Name (Sign Up Only) */}
-              {!isLogin && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontWeight: '600', color: '#1f2937' }}>Full Name</label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Doe"
-                    required
-                    style={{
-                      padding: '0.75rem 1rem',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.95rem',
-                      fontFamily: 'inherit'
-                    }}
-                  />
-                </div>
-              )}
-
               {/* Email */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 <label style={{ fontWeight: '600', color: '#1f2937' }}>Email</label>
@@ -255,14 +198,19 @@ export default function AuthPage() {
                 onMouseEnter={(e) => !loading && (e.currentTarget.style.transform = 'translateY(-2px)')}
                 onMouseLeave={(e) => !loading && (e.currentTarget.style.transform = 'none')}
               >
-                {loading ? 'Please wait...' : isLogin ? 'Login' : 'Create Account'}
+                {loading ? 'Logging in...' : 'Login'}
               </button>
+
+              <p style={{ textAlign: 'center', color: '#6b7280', fontSize: '0.875rem' }}>
+                Need an account? Contact your administrator to create one.
+              </p>
 
               {/* Demo Credentials */}
               <div style={{ padding: '1rem', background: '#f3f4f6', borderRadius: '0.5rem', fontSize: '0.85rem', color: '#6b7280' }}>
                 <p style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Demo Credentials:</p>
-                <p>Email: demo@university.edu</p>
-                <p>Password: demo123</p>
+                <p>Admin: admin@university.edu / password123</p>
+                <p>Faculty: faculty@university.edu / password123</p>
+                <p>Student: student@university.edu / password123</p>
               </div>
             </form>
           </div>

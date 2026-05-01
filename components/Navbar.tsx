@@ -24,6 +24,7 @@ export default function Navbar() {
   // Role-based navigation
   const adminLinks = [
     { href: '/admin', label: '📊 Dashboard' },
+    { href: '/admin/accounts', label: '👤 Manage Accounts' },
     { href: '/staff', label: '👔 Staff' },
     { href: '/students', label: '👥 Students' },
     { href: '/subjects', label: '📚 Subjects' },
