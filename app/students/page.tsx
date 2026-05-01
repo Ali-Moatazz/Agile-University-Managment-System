@@ -1,10 +1,24 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, Student } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
 import StudentCard from '@/components/StudentCard'
 
+interface Student {
+  id: string
+  user_id?: string
+  name: string
+  email: string
+  student_id: string
+  major: string
+  created_at?: string
+}
+
 export default function StudentsPage() {
+  const { user } = useAuth()
+  const router = useRouter()
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -16,6 +30,13 @@ export default function StudentsPage() {
     major: '',
   })
   const [message, setMessage] = useState('')
+
+  // Check authorization
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      router.push('/')
+    }
+  }, [user, router])
 
   useEffect(() => {
     fetchStudents()
@@ -32,7 +53,7 @@ export default function StudentsPage() {
       setStudents(data || [])
     } catch (error) {
       console.error('Error fetching students:', error)
-      setMessage('Failed to load students')
+      setMessage('❌ Failed to load students')
     } finally {
       setLoading(false)
     }
@@ -41,7 +62,7 @@ export default function StudentsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.name || !formData.email || !formData.student_id) {
+    if (!formData.name || !formData.email || !formData.student_id || !formData.major) {
       setMessage('Please fill in all required fields')
       return
     }
@@ -50,15 +71,49 @@ export default function StudentsPage() {
       if (editingId) {
         const { error } = await supabase
           .from('students')
-          .update(formData)
+          .update({
+            name: formData.name,
+            email: formData.email,
+            student_id: formData.student_id,
+            major: formData.major
+          })
           .eq('id', editingId)
 
         if (error) throw error
         setMessage('✓ Student updated successfully!')
       } else {
+        // Check if email or student_id already exists
+        const { data: existingEmail } = await supabase
+          .from('students')
+          .select('id')
+          .eq('email', formData.email)
+          .single()
+
+        if (existingEmail) {
+          setMessage('❌ Email already registered')
+          return
+        }
+
+        const { data: existingId } = await supabase
+          .from('students')
+          .select('id')
+          .eq('student_id', formData.student_id)
+          .single()
+
+        if (existingId) {
+          setMessage('❌ Student ID already exists')
+          return
+        }
+
         const { error } = await supabase
           .from('students')
-          .insert([formData])
+          .insert([{
+            user_id: user?.id,
+            name: formData.name,
+            email: formData.email,
+            student_id: formData.student_id,
+            major: formData.major
+          }])
 
         if (error) throw error
         setMessage('✓ Student added successfully!')
@@ -70,7 +125,7 @@ export default function StudentsPage() {
       fetchStudents()
     } catch (error) {
       console.error('Error saving student:', error)
-      setMessage('Failed to save student')
+      setMessage('❌ Failed to save student')
     }
   }
 
@@ -93,7 +148,7 @@ export default function StudentsPage() {
         fetchStudents()
       } catch (error) {
         console.error('Error deleting student:', error)
-        setMessage('Failed to delete student')
+        setMessage('❌ Failed to delete student')
       }
     }
   }

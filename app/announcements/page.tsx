@@ -1,11 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, Announcement } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
 import AnnouncementCard from '@/components/AnnouncementCard'
 import Link from 'next/link'
 
+interface Announcement {
+  id: string
+  title: string
+  content: string
+  created_by?: string
+  created_at?: string
+}
+
 export default function AnnouncementsPage() {
+  const { user } = useAuth()
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -25,7 +35,7 @@ export default function AnnouncementsPage() {
       setAnnouncements(data || [])
     } catch (error) {
       console.error('Error fetching announcements:', error)
-      setMessage('Failed to load announcements')
+      setMessage('❌ Failed to load announcements')
     } finally {
       setLoading(false)
     }
@@ -44,47 +54,87 @@ export default function AnnouncementsPage() {
         fetchAnnouncements()
       } catch (error) {
         console.error('Error deleting:', error)
-        setMessage('Failed to delete announcement')
+        setMessage('❌ Failed to delete announcement')
       }
     }
   }
 
   return (
     <main className="container">
-      <div className="flex-between mb-6">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
         <div>
-          <h1 className="text-3xl font-bold mb-2">Announcements</h1>
-          <p className="text-secondary">Latest news and updates from the university</p>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#1f2937' }}>Announcements</h1>
+          <p style={{ color: '#6b7280' }}>Latest news and updates from the university</p>
         </div>
-        <Link href="/announcements/create" className="btn btn-primary">
-          + Create Announcement
-        </Link>
+        {user?.role === 'admin' && (
+          <Link href="/announcements/create" style={{
+            background: '#667eea',
+            color: 'white',
+            padding: '0.75rem 1.5rem',
+            borderRadius: '0.5rem',
+            textDecoration: 'none',
+            fontWeight: '600'
+          }}>
+            + Create Announcement
+          </Link>
+        )}
       </div>
 
       {message && (
-        <div className={`alert mb-6 ${message.includes('✓') ? 'alert-success' : 'alert-danger'}`}>
+        <div style={{
+          padding: '1rem 1.5rem',
+          borderRadius: '0.5rem',
+          marginBottom: '1.5rem',
+          background: message.includes('✓') ? '#d1fae5' : '#fee2e2',
+          color: message.includes('✓') ? '#065f46' : '#991b1b',
+          borderLeft: `4px solid ${message.includes('✓') ? '#10b981' : '#ef4444'}`
+        }}>
           {message}
         </div>
       )}
 
       {loading ? (
-        <div className="flex-center p-8">
-          <div className="spinner"></div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+          <div style={{
+            width: '1rem',
+            height: '1rem',
+            border: '2px solid #e5e7eb',
+            borderTop: '2px solid #667eea',
+            borderRadius: '50%',
+            animation: 'spin 0.6s linear infinite'
+          }}></div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       ) : announcements.length === 0 ? (
-        <div className="card p-8 text-center">
-          <p className="text-secondary mb-4">No announcements yet.</p>
-          <Link href="/announcements/create" className="btn btn-primary">
-            Post the first announcement
-          </Link>
+        <div style={{
+          background: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: '0.75rem',
+          padding: '2rem',
+          textAlign: 'center'
+        }}>
+          <p style={{ color: '#6b7280', marginBottom: '1rem' }}>No announcements yet.</p>
+          {user?.role === 'admin' && (
+            <Link href="/announcements/create" style={{
+              background: '#667eea',
+              color: 'white',
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              fontWeight: '600',
+              display: 'inline-block'
+            }}>
+              Post the first announcement
+            </Link>
+          )}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {announcements.map((announcement) => (
             <AnnouncementCard
               key={announcement.id}
               announcement={announcement}
-              onDelete={handleDelete}
+              onDelete={user?.role === 'admin' ? handleDelete : undefined}
             />
           ))}
         </div>

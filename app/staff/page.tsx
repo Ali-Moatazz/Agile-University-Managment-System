@@ -1,10 +1,25 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, Staff } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
 import StaffCard from '@/components/StaffCard'
 
+interface Staff {
+  id: string
+  user_id?: string
+  name: string
+  email: string
+  role: 'Professor' | 'TA' | 'Admin'
+  office_location: string
+  phone?: string
+  created_at?: string
+}
+
 export default function StaffPage() {
+  const { user } = useAuth()
+  const router = useRouter()
   const [staff, setStaff] = useState<Staff[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -17,6 +32,13 @@ export default function StaffPage() {
     phone: '',
   })
   const [message, setMessage] = useState('')
+
+  // Check authorization
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      router.push('/')
+    }
+  }, [user, router])
 
   useEffect(() => {
     fetchStaff()
@@ -33,7 +55,7 @@ export default function StaffPage() {
       setStaff(data || [])
     } catch (error) {
       console.error('Error fetching staff:', error)
-      setMessage('Failed to load staff records')
+      setMessage('❌ Failed to load staff records')
     } finally {
       setLoading(false)
     }
@@ -51,7 +73,13 @@ export default function StaffPage() {
       if (editingId) {
         const { error } = await supabase
           .from('staff')
-          .update(formData)
+          .update({
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            office_location: formData.office_location,
+            phone: formData.phone
+          })
           .eq('id', editingId)
 
         if (error) throw error
@@ -59,7 +87,14 @@ export default function StaffPage() {
       } else {
         const { error } = await supabase
           .from('staff')
-          .insert([formData])
+          .insert([{
+            user_id: user?.id,
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            office_location: formData.office_location,
+            phone: formData.phone
+          }])
 
         if (error) throw error
         setMessage('✓ Staff added successfully!')
@@ -71,7 +106,7 @@ export default function StaffPage() {
       fetchStaff()
     } catch (error) {
       console.error('Error saving staff:', error)
-      setMessage('Failed to save staff record')
+      setMessage('❌ Failed to save staff record')
     }
   }
 
@@ -94,7 +129,7 @@ export default function StaffPage() {
         fetchStaff()
       } catch (error) {
         console.error('Error deleting staff:', error)
-        setMessage('Failed to delete staff record')
+        setMessage('❌ Failed to delete staff record')
       }
     }
   }

@@ -1,10 +1,25 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, Subject } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
 import SubjectCard from '@/components/SubjectCard'
 
+interface Subject {
+  id: string
+  code: string
+  name: string
+  credits: number
+  description: string
+  type: 'Core' | 'Elective'
+  created_by?: string
+  created_at?: string
+}
+
 export default function SubjectsPage() {
+  const { user } = useAuth()
+  const router = useRouter()
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -17,6 +32,13 @@ export default function SubjectsPage() {
     type: 'Core',
   })
   const [message, setMessage] = useState('')
+
+  // Check authorization
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      router.push('/')
+    }
+  }, [user, router])
 
   useEffect(() => {
     fetchSubjects()
@@ -33,7 +55,7 @@ export default function SubjectsPage() {
       setSubjects(data || [])
     } catch (error) {
       console.error('Error fetching subjects:', error)
-      setMessage('Failed to load subjects')
+      setMessage('❌ Failed to load subjects')
     } finally {
       setLoading(false)
     }
@@ -51,15 +73,40 @@ export default function SubjectsPage() {
       if (editingId) {
         const { error } = await supabase
           .from('subjects')
-          .update(formData)
+          .update({
+            code: formData.code,
+            name: formData.name,
+            credits: formData.credits,
+            description: formData.description,
+            type: formData.type
+          })
           .eq('id', editingId)
 
         if (error) throw error
         setMessage('✓ Subject updated successfully!')
       } else {
+        // Check if code is unique
+        const { data: existing } = await supabase
+          .from('subjects')
+          .select('id')
+          .eq('code', formData.code)
+          .single()
+
+        if (existing) {
+          setMessage('❌ Subject code already exists. Please use a unique code.')
+          return
+        }
+
         const { error } = await supabase
           .from('subjects')
-          .insert([formData])
+          .insert([{
+            code: formData.code,
+            name: formData.name,
+            credits: formData.credits,
+            description: formData.description,
+            type: formData.type,
+            created_by: user?.id
+          }])
 
         if (error) throw error
         setMessage('✓ Subject created successfully!')
@@ -71,7 +118,7 @@ export default function SubjectsPage() {
       fetchSubjects()
     } catch (error) {
       console.error('Error saving subject:', error)
-      setMessage('Failed to save subject')
+      setMessage('❌ Failed to save subject')
     }
   }
 
@@ -94,7 +141,7 @@ export default function SubjectsPage() {
         fetchSubjects()
       } catch (error) {
         console.error('Error deleting subject:', error)
-        setMessage('Failed to delete subject')
+        setMessage('❌ Failed to delete subject')
       }
     }
   }
