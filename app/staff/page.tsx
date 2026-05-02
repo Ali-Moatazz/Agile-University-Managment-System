@@ -90,10 +90,46 @@ export default function StaffPage() {
         if (error) throw error
         setMessage('✓ Staff updated successfully!')
       } else {
-        const { error } = await supabase
+        // New staff - create user account first
+        if (!formData.password || formData.password.length < 6) {
+          setMessage('❌ Password must be at least 6 characters')
+          return
+        }
+
+        // Check if email already exists in users table
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', formData.email)
+          .single()
+
+        if (existingUser) {
+          setMessage('❌ Email already registered')
+          return
+        }
+
+        // Map staff role to user role
+        const userRole = formData.role === 'Professor' ? 'doctor' : formData.role === 'TA' ? 'ta' : 'admin'
+
+        // Create user account first
+        const { data: newUser, error: userError } = await supabase
+          .from('users')
+          .insert([{
+            email: formData.email,
+            password_hash: formData.password,
+            full_name: formData.name,
+            role: userRole
+          }])
+          .select()
+          .single()
+
+        if (userError) throw new Error('Failed to create user account')
+
+        // Now create staff record with user_id
+        const { error: staffError } = await supabase
           .from('staff')
           .insert([{
-            user_id: user?.id,
+            user_id: newUser.id,
             name: formData.name,
             email: formData.email,
             role: formData.role,
@@ -101,17 +137,17 @@ export default function StaffPage() {
             phone: formData.phone
           }])
 
-        if (error) throw error
+        if (staffError) throw new Error('Failed to create staff record')
         setMessage('✓ Staff added successfully!')
       }
 
-      setFormData({ name: '', email: '', role: 'Professor', office_location: '', phone: '' })
+      setFormData({ name: '', email: '', role: 'Professor', office_location: '', phone: '', password: '' })
       setEditingId(null)
       setShowForm(false)
       fetchStaff()
     } catch (error) {
       console.error('Error saving staff:', error)
-      setMessage('❌ Failed to save staff record')
+      setMessage(error instanceof Error ? `❌ ${error.message}` : '❌ Failed to save staff record')
     }
   }
 
@@ -154,7 +190,7 @@ export default function StaffPage() {
           onClick={() => {
             setShowForm(!showForm)
             setEditingId(null)
-            setFormData({ name: '', email: '', role: 'Professor', office_location: '', phone: '' })
+            setFormData({ name: '', email: '', role: 'Professor', office_location: '', phone: '', password: '' })
           }}
           style={{
             background: showForm ? '#ef4444' : '#667eea',
@@ -286,6 +322,25 @@ export default function StaffPage() {
                   placeholder="(123) 456-7890"
                 />
               </div>
+              {!editingId && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ fontWeight: '600', color: '#1f2937' }}>Password * (New Staff Only)</label>
+                  <input
+                    type="password"
+                    value={formData.password || ''}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.95rem',
+                      fontFamily: 'inherit'
+                    }}
+                    placeholder="Min 6 characters"
+                    required={!editingId}
+                  />
+                </div>
+              )}
             </div>
             <button
               type="submit"
