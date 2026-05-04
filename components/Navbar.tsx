@@ -25,6 +25,7 @@ export default function Navbar() {
   const adminLinks = [
     { href: '/admin', label: '📊 Dashboard' },
     { href: '/admin/accounts', label: '👤 Manage Accounts' },
+    { href: '/admin/rooms', label: '🏢 Manage Rooms' },
     { href: '/staff', label: '👔 Staff' },
     { href: '/students', label: '👥 Students' },
     { href: '/subjects', label: '📚 Subjects' },
@@ -45,7 +46,6 @@ export default function Navbar() {
     { href: '/courses', label: '📖 My Courses' },
     { href: '/grades', label: '📊 My Grades' },
     { href: '/announcements', label: '📢 Announcements' },
-    { href: '/rooms', label: '🏢 Book Study Room' },
   ]
 
   const getLinks = () => {

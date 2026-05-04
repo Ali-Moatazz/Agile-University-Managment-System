@@ -12,8 +12,8 @@ interface Subject {
   credits: number
   description: string
   type: 'Core' | 'Elective'
-  created_by?: string
-  created_at?: string
+  created_by: string
+  created_at: string
 }
 
 export default function CatalogPage() {

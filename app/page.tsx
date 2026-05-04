@@ -7,7 +7,6 @@ import { useAuth } from '@/lib/auth-context'
 export default function AuthPage() {
   const router = useRouter()
   const { user, login } = useAuth()
-  const [selectedRole, setSelectedRole] = useState<'admin' | 'doctor' | 'ta' | 'student'>('student')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -31,28 +30,30 @@ export default function AuthPage() {
     setLoading(true)
 
     try {
-      await login(email, password, selectedRole)
+      // Login without specifying role - it's fetched from database
+      await login(email, password, '')
 
-      // Redirect based on role
-      if (selectedRole === 'admin') {
-        router.push('/admin')
-      } else if (selectedRole === 'student') {
-        router.push('/student')
-      } else {
-        router.push('/faculty')
-      }
+      // Redirect based on actual user role from database
+      // (The user will be set in context after login)
+      // Adding delay to allow state to update
+      setTimeout(() => {
+        const savedUser = localStorage.getItem('unimanage_user')
+        if (savedUser) {
+          const userData = JSON.parse(savedUser)
+          if (userData.role === 'admin') {
+            router.push('/admin')
+          } else if (userData.role === 'student') {
+            router.push('/student')
+          } else {
+            router.push('/faculty')
+          }
+        }
+      }, 100)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setLoading(false)
     }
-  }
-
-  const roleDescriptions = {
-    admin: 'Manage staff, students, subjects, and announcements',
-    doctor: 'View catalog, book rooms, manage grades',
-    ta: 'Assist faculty with courses and grading',
-    student: 'Enroll in courses, view grades, book study rooms'
   }
 
   return (
@@ -148,36 +149,6 @@ export default function AuthPage() {
                     fontFamily: 'inherit'
                   }}
                 />
-              </div>
-
-              {/* Role Selection */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <label style={{ fontWeight: '600', color: '#1f2937' }}>Role</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-                  {(['admin', 'doctor', 'ta', 'student'] as const).map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => setSelectedRole(role)}
-                      style={{
-                        padding: '0.75rem',
-                        border: selectedRole === role ? '2px solid #667eea' : '1px solid #e5e7eb',
-                        background: selectedRole === role ? '#f3f4f6' : 'white',
-                        borderRadius: '0.5rem',
-                        cursor: 'pointer',
-                        fontWeight: '600',
-                        color: selectedRole === role ? '#667eea' : '#6b7280',
-                        textTransform: 'capitalize',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      {role === 'ta' ? 'TA' : role.charAt(0).toUpperCase() + role.slice(1)}
-                    </button>
-                  ))}
-                </div>
-                <p style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                  {roleDescriptions[selectedRole]}
-                </p>
               </div>
 
               {/* Submit Button */}

@@ -14,7 +14,7 @@ interface Staff {
   role: 'Professor' | 'TA' | 'Admin'
   office_location: string
   phone?: string
-  created_at?: string
+  created_at: string
 }
 
 interface StaffFormData extends Partial<Staff> {

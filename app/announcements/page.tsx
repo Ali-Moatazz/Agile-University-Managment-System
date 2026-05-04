@@ -10,8 +10,9 @@ interface Announcement {
   id: string
   title: string
   content: string
-  created_by?: string
-  created_at?: string
+  created_by: string
+  created_at: string
+  updated_at: string
 }
 
 export default function AnnouncementsPage() {

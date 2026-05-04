@@ -12,8 +12,8 @@ interface Student {
   name: string
   email: string
   student_id: string
-  major: string
-  created_at?: string
+  major?: string
+  created_at: string
 }
 
 interface StudentFormData extends Partial<Student> {

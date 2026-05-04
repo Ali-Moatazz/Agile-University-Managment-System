@@ -23,8 +23,8 @@ export default function AdminDashboard() {
     { icon: '👔', title: 'Staff Directory', desc: 'Manage staff profiles and information', href: '/staff', color: '#667eea' },
     { icon: '👥', title: 'Students', desc: 'Create and manage student records', href: '/students', color: '#f5576c' },
     { icon: '📚', title: 'Subjects', desc: 'Create course subjects and profiles', href: '/subjects', color: '#f093fb' },
-    { icon: '📢', title: 'Announcements', desc: 'Post system-wide announcements', href: '/announcements/create', color: '#4facfe' },
-    { icon: '📊', title: 'Catalog', desc: 'View the complete course catalog', href: '/catalog', color: '#43e97b' },
+    { icon: '🏢', title: 'Manage Rooms', desc: 'Create and manage classrooms and labs', href: '/admin/rooms', color: '#4facfe' },
+    { icon: '📢', title: 'Announcements', desc: 'Post system-wide announcements', href: '/announcements/create', color: '#43e97b' },
     { icon: '📋', title: 'All Announcements', desc: 'View all posted announcements', href: '/announcements', color: '#fa709a' },
   ]
 

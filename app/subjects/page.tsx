@@ -14,7 +14,7 @@ interface Subject {
   description: string
   type: 'Core' | 'Elective'
   created_by?: string
-  created_at?: string
+  created_at: string
 }
 
 export default function SubjectsPage() {
