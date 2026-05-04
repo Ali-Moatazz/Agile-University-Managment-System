@@ -1,5 +1,6 @@
 import './globals.css'
 import Navbar from '@/components/Navbar'
+import { AuthProvider } from '@/lib/auth-context'
 
 export const metadata = {
   title: 'UniManage - University Management System',
@@ -14,8 +15,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Navbar />
-        <main>{children}</main>
+        <AuthProvider>
+          <Navbar />
+          <main>{children}</main>
+        </AuthProvider>
       </body>
     </html>
   )

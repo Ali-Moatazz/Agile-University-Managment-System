@@ -1,21 +1,47 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, Student } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
 import StudentCard from '@/components/StudentCard'
 
+interface Student {
+  id: string
+  user_id?: string
+  name: string
+  email: string
+  student_id: string
+  major?: string
+  created_at: string
+}
+
+interface StudentFormData extends Partial<Student> {
+  password?: string
+}
+
 export default function StudentsPage() {
+  const { user } = useAuth()
+  const router = useRouter()
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [formData, setFormData] = useState<Partial<Student>>({
+  const [formData, setFormData] = useState<StudentFormData>({
     name: '',
     email: '',
     student_id: '',
     major: '',
+    password: '',
   })
   const [message, setMessage] = useState('')
+
+  // Check authorization
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      router.push('/')
+    }
+  }, [user, router])
 
   useEffect(() => {
     fetchStudents()
@@ -32,7 +58,7 @@ export default function StudentsPage() {
       setStudents(data || [])
     } catch (error) {
       console.error('Error fetching students:', error)
-      setMessage('Failed to load students')
+      setMessage('❌ Failed to load students')
     } finally {
       setLoading(false)
     }
@@ -41,7 +67,7 @@ export default function StudentsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.name || !formData.email || !formData.student_id) {
+    if (!formData.name || !formData.email || !formData.student_id || !formData.major) {
       setMessage('Please fill in all required fields')
       return
     }
@@ -50,27 +76,83 @@ export default function StudentsPage() {
       if (editingId) {
         const { error } = await supabase
           .from('students')
-          .update(formData)
+          .update({
+            name: formData.name,
+            email: formData.email,
+            student_id: formData.student_id,
+            major: formData.major
+          })
           .eq('id', editingId)
 
         if (error) throw error
         setMessage('✓ Student updated successfully!')
       } else {
-        const { error } = await supabase
-          .from('students')
-          .insert([formData])
+        // New student - create user account first
+        if (!formData.password || formData.password.length < 6) {
+          setMessage('❌ Password must be at least 6 characters')
+          return
+        }
 
-        if (error) throw error
+        // Check if email already exists in users table
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('email', formData.email)
+          .single()
+
+        if (existingUser) {
+          setMessage('❌ Email already registered')
+          return
+        }
+
+        // Check if student_id already exists
+        const { data: existingId } = await supabase
+          .from('students')
+          .select('id')
+          .eq('student_id', formData.student_id)
+          .single()
+
+        if (existingId) {
+          setMessage('❌ Student ID already exists')
+          return
+        }
+
+        // Create user account first
+        const { data: newUser, error: userError } = await supabase
+          .from('users')
+          .insert([{
+            email: formData.email,
+            password_hash: formData.password,
+            full_name: formData.name,
+            role: 'student'
+          }])
+          .select()
+          .single()
+
+        if (userError) throw new Error('Failed to create user account')
+
+        // Now create student record with user_id
+        const { error: studentError } = await supabase
+          .from('students')
+          .insert([{
+            user_id: newUser.id,
+            name: formData.name,
+            email: formData.email,
+            student_id: formData.student_id,
+            major: formData.major
+          }])
+
+        if (studentError) throw new Error('Failed to create student record')
         setMessage('✓ Student added successfully!')
       }
 
-      setFormData({ name: '', email: '', student_id: '', major: '' })
+      setFormData({ name: '', email: '', student_id: '', major: '', password: '' })
       setEditingId(null)
       setShowForm(false)
       fetchStudents()
     } catch (error) {
       console.error('Error saving student:', error)
-      setMessage('Failed to save student')
+      setMessage(error instanceof Error ? `❌ ${error.message}` : '❌ Failed to save student')
     }
   }
 
@@ -93,7 +175,7 @@ export default function StudentsPage() {
         fetchStudents()
       } catch (error) {
         console.error('Error deleting student:', error)
-        setMessage('Failed to delete student')
+        setMessage('❌ Failed to delete student')
       }
     }
   }
@@ -170,6 +252,19 @@ export default function StudentsPage() {
                   placeholder="e.g., Computer Science"
                 />
               </div>
+              {!editingId && (
+                <div className="form-group">
+                  <label className="form-label">Password * (New Students Only)</label>
+                  <input
+                    type="password"
+                    value={formData.password || ''}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="form-input"
+                    placeholder="Min 6 characters"
+                    required={!editingId}
+                  />
+                </div>
+              )}
             </div>
             <button type="submit" className="btn btn-primary">
               {editingId ? 'Update Student' : 'Add Student'}

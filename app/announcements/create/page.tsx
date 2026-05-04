@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { useAuth } from '@/lib/auth-context'
 
 export default function CreateAnnouncementPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -13,6 +15,13 @@ export default function CreateAnnouncementPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Check authorization - only admins can create announcements
+  useEffect(() => {
+    if (!user || user.role !== 'admin') {
+      router.push('/')
+    }
+  }, [user, router])
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -43,7 +52,7 @@ export default function CreateAnnouncementPage() {
         {
           title: formData.title,
           content: formData.content,
-          created_by: 'Admin', // In a real app, this comes from auth
+          created_by: user?.id,
         },
       ])
 
@@ -52,10 +61,14 @@ export default function CreateAnnouncementPage() {
       setTimeout(() => router.push('/announcements'), 2000)
     } catch (error) {
       console.error('Error creating announcement:', error)
-      setMessage('Failed to create announcement')
+      setMessage('❌ Failed to create announcement')
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!user || user.role !== 'admin') {
+    return null
   }
 
   return (

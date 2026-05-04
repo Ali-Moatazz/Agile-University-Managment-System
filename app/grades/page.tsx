@@ -1,33 +1,69 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase, Grade } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
+
+interface Grade {
+  id: string
+  student_id: string
+  subject_id: string
+  score: number
+  feedback?: string
+  created_by?: string
+  created_at?: string
+}
 
 export default function GradesPage() {
+  const { user } = useAuth()
+  const router = useRouter()
   const [grades, setGrades] = useState<Grade[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
 
+  // Redirect if not authenticated
   useEffect(() => {
-    fetchGrades()
-  }, [])
+    if (!user) {
+      router.push('/')
+    }
+  }, [user, router])
+
+  useEffect(() => {
+    if (user) {
+      fetchGrades()
+    }
+  }, [user])
 
   const fetchGrades = async () => {
     try {
-      // In a real app, this would be filtered by the logged-in student's ID
-      const studentId = 'default-student-id'
+      if (!user) return
 
-      const { data, error } = await supabase
-        .from('grades')
-        .select('*')
-        .eq('student_id', studentId)
-        .order('created_at', { ascending: false })
+      let query = supabase.from('grades').select('*')
+
+      if (user.role === 'student') {
+        // Get student ID for this user
+        const { data: studentData } = await supabase
+          .from('students')
+          .select('id')
+          .eq('user_id', user.id)
+          .single()
+
+        if (studentData) {
+          query = query.eq('student_id', studentData.id)
+        }
+      } else if (user.role === 'doctor' || user.role === 'ta') {
+        // Faculty/TA can see grades for their courses (simplified: show all)
+        query = query
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false })
 
       if (error) throw error
       setGrades(data || [])
     } catch (error) {
       console.error('Error fetching grades:', error)
-      setMessage('Failed to load grades')
+      setMessage('❌ Failed to load grades')
     } finally {
       setLoading(false)
     }
@@ -40,89 +76,138 @@ export default function GradesPage() {
   }
 
   const getGradeStatus = (score: number) => {
-    if (score >= 90) return { text: 'Excellent', color: 'badge-success' }
-    if (score >= 80) return { text: 'Very Good', color: 'badge-primary' }
-    if (score >= 70) return { text: 'Good', color: 'badge-warning' }
-    return { text: 'Needs Improvement', color: 'badge-danger' }
+    if (score >= 90) return { text: 'Excellent', color: '#10b981' }
+    if (score >= 80) return { text: 'Very Good', color: '#667eea' }
+    if (score >= 70) return { text: 'Good', color: '#f59e0b' }
+    return { text: 'Needs Improvement', color: '#ef4444' }
+  }
+
+  if (!user) {
+    return null
   }
 
   return (
-    <main className="container">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Grade Dashboard</h1>
-        <p className="text-secondary">Your grades and academic performance</p>
+    <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '0.5rem', color: '#1f2937' }}>Grade Dashboard</h1>
+        <p style={{ color: '#6b7280' }}>Your grades and academic performance</p>
       </div>
 
       {message && (
-        <div className="alert alert-danger mb-6">
+        <div style={{
+          padding: '1rem 1.5rem',
+          borderRadius: '0.5rem',
+          marginBottom: '1.5rem',
+          background: '#fee2e2',
+          color: '#991b1b',
+          borderLeft: `4px solid #ef4444`
+        }}>
           {message}
         </div>
       )}
 
       {loading ? (
-        <div className="flex-center p-8">
-          <div className="spinner"></div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+          <div style={{
+            width: '1rem',
+            height: '1rem',
+            border: '2px solid #e5e7eb',
+            borderTop: '2px solid #667eea',
+            borderRadius: '50%',
+            animation: 'spin 0.6s linear infinite'
+          }}></div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       ) : (
         <>
           {grades.length > 0 && (
-            <div className="card mb-6">
-              <div className="card-body">
-                <div className="grid grid-2">
-                  <div>
-                    <p className="text-secondary">Total Assessments</p>
-                    <p className="text-2xl font-bold text-primary">{grades.length}</p>
-                  </div>
-                  <div>
-                    <p className="text-secondary">Average Score</p>
-                    <p className="text-2xl font-bold text-primary">{calculateAverage()}%</p>
-                  </div>
-                </div>
+            <div style={{
+              background: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.75rem',
+              padding: '1.5rem',
+              marginBottom: '1.5rem',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1.5rem'
+            }}>
+              <div>
+                <p style={{ color: '#6b7280', fontSize: '0.875rem', fontWeight: '600' }}>Total Assessments</p>
+                <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#667eea', margin: '0.5rem 0 0 0' }}>{grades.length}</p>
+              </div>
+              <div>
+                <p style={{ color: '#6b7280', fontSize: '0.875rem', fontWeight: '600' }}>Average Score</p>
+                <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#667eea', margin: '0.5rem 0 0 0' }}>{calculateAverage()}%</p>
               </div>
             </div>
           )}
 
           {grades.length === 0 ? (
-            <div className="card p-8 text-center">
-              <p className="text-secondary">No grades available yet. Check back soon!</p>
+            <div style={{
+              background: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.75rem',
+              padding: '2rem',
+              textAlign: 'center'
+            }}>
+              <p style={{ color: '#6b7280' }}>No grades available yet. Check back soon!</p>
             </div>
           ) : (
-            <div className="card">
-              <div className="card-header">
-                <h3 className="card-title">Assessment Results</h3>
+            <div style={{
+              background: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.75rem',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                padding: '1.5rem'
+              }}>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', margin: 0 }}>Assessment Results</h3>
               </div>
-              <div className="table-container">
-                <table className="table">
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse'
+                }}>
                   <thead>
-                    <tr>
-                      <th>Subject ID</th>
-                      <th>Score</th>
-                      <th>Status</th>
-                      <th>Feedback</th>
-                      <th>Date</th>
+                    <tr style={{ background: '#f3f4f6', borderBottom: '1px solid #e5e7eb' }}>
+                      <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#1f2937' }}>Subject ID</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#1f2937' }}>Score</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#1f2937' }}>Status</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#1f2937' }}>Feedback</th>
+                      <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', color: '#1f2937' }}>Date</th>
                     </tr>
                   </thead>
                   <tbody>
                     {grades.map((grade) => {
                       const status = getGradeStatus(grade.score)
                       return (
-                        <tr key={grade.id}>
-                          <td>
-                            <span className="font-semibold">{grade.subject_id}</span>
+                        <tr key={grade.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                          <td style={{ padding: '1rem', color: '#1f2937', fontWeight: '500' }}>
+                            {grade.subject_id}
                           </td>
-                          <td>
-                            <span className="font-bold text-lg">{grade.score}/100</span>
+                          <td style={{ padding: '1rem', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937' }}>
+                            {grade.score}/100
                           </td>
-                          <td>
-                            <span className={`badge ${status.color}`}>{status.text}</span>
+                          <td style={{ padding: '1rem' }}>
+                            <span style={{
+                              background: status.color + '22',
+                              color: status.color,
+                              padding: '0.25rem 0.75rem',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.75rem',
+                              fontWeight: '600'
+                            }}>
+                              {status.text}
+                            </span>
                           </td>
-                          <td>
-                            <p className="text-sm text-secondary">{grade.feedback}</p>
+                          <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                            {grade.feedback || '-'}
                           </td>
-                          <td>
-                            <p className="text-sm text-secondary">
-                              {new Date(grade.created_at).toLocaleDateString()}
-                            </p>
+                          <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                            {grade.created_at ? new Date(grade.created_at).toLocaleDateString() : '-'}
                           </td>
                         </tr>
                       )
