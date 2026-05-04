@@ -85,10 +85,10 @@ export default function FacultyDashboard() {
                 }}
               >
                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{feature.icon}</div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem', textDecoration: 'none' }}>
                   {feature.title}
                 </h3>
-                <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
+                <p style={{ color: '#6b7280', marginBottom: '1rem', textDecoration: 'none' }}>
                   {feature.desc}
                 </p>
                 <button style={{
@@ -109,13 +109,13 @@ export default function FacultyDashboard() {
 
         {/* Quick Tips */}
         <div style={{ marginTop: '3rem', background: 'white', padding: '2rem', borderRadius: '1rem', border: '1px solid #e5e7eb' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>💡 Helpful Reminders</h3>
-          <ul style={{ color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <li>• Book rooms in advance for your lectures and office hours</li>
-            <li>• Enter grades promptly after assessments are completed</li>
-            <li>• Check announcements regularly for important updates</li>
-            <li>• Student rosters update automatically when they enroll</li>
-            <li>• Submit feedback with grades to help student development</li>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem', textDecoration: 'none' }}>💡 Helpful Reminders</h3>
+          <ul style={{ color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '0.75rem', listStyle: 'disc', paddingLeft: '1.5rem', margin: '0' }}>
+            <li>Book rooms in advance for your lectures and office hours</li>
+            <li>Enter grades promptly after assessments are completed</li>
+            <li>Check announcements regularly for important updates</li>
+            <li>Student rosters update automatically when they enroll</li>
+            <li>Submit feedback with grades to help student development</li>
           </ul>
         </div>
       </div>

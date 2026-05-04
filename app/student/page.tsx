@@ -85,10 +85,10 @@ export default function StudentDashboard() {
                 }}
               >
                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{feature.icon}</div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem', textDecoration: 'none' }}>
                   {feature.title}
                 </h3>
-                <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
+                <p style={{ color: '#6b7280', marginBottom: '1rem', textDecoration: 'none' }}>
                   {feature.desc}
                 </p>
                 <button style={{
@@ -109,13 +109,13 @@ export default function StudentDashboard() {
 
         {/* Important Information */}
         <div style={{ marginTop: '3rem', background: 'white', padding: '2rem', borderRadius: '1rem', border: '1px solid #e5e7eb' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>📋 Academic Tips</h3>
-          <ul style={{ color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <li>• Browse the course catalog early to plan your semester</li>
-            <li>• Enroll in core courses before electives</li>
-            <li>• Check your grades regularly to stay on track</li>
-            <li>• Book study rooms for group projects</li>
-            <li>• Read all announcements for important deadlines</li>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem', textDecoration: 'none' }}>📋 Academic Tips</h3>
+          <ul style={{ color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '0.75rem', listStyle: 'disc', paddingLeft: '1.5rem', margin: '0' }}>
+            <li>Browse the course catalog early to plan your semester</li>
+            <li>Enroll in core courses before electives</li>
+            <li>Check your grades regularly to stay on track</li>
+            <li>Book study rooms for group projects</li>
+            <li>Read all announcements for important deadlines</li>
           </ul>
         </div>
       </div>

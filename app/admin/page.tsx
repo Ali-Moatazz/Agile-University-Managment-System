@@ -85,10 +85,10 @@ export default function AdminDashboard() {
                 }}
               >
                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{feature.icon}</div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem', textDecoration: 'none' }}>
                   {feature.title}
                 </h3>
-                <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
+                <p style={{ color: '#6b7280', marginBottom: '1rem', textDecoration: 'none' }}>
                   {feature.desc}
                 </p>
                 <button style={{
@@ -109,13 +109,13 @@ export default function AdminDashboard() {
 
         {/* Quick Tips */}
         <div style={{ marginTop: '3rem', background: 'white', padding: '2rem', borderRadius: '1rem', border: '1px solid #e5e7eb' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>💡 Quick Tips</h3>
-          <ul style={{ color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <li>• Always validate unique subject codes before saving new courses</li>
-            <li>• Staff changes are immediately reflected in the system</li>
-            <li>• Announcements are visible to all users in the system</li>
-            <li>• Student records must include email for system access</li>
-            <li>• Regular backups ensure data security and integrity</li>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem', textDecoration: 'none' }}>💡 Quick Tips</h3>
+          <ul style={{ color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '0.75rem', listStyle: 'disc', paddingLeft: '1.5rem', margin: '0' }}>
+            <li>Always validate unique subject codes before saving new courses</li>
+            <li>Staff changes are immediately reflected in the system</li>
+            <li>Announcements are visible to all users in the system</li>
+            <li>Student records must include email for system access</li>
+            <li>Regular backups ensure data security and integrity</li>
           </ul>
         </div>
       </div>

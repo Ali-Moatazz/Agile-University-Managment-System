@@ -71,16 +71,16 @@ export default function AuthPage() {
             <h2 style={{ fontSize: '1.875rem', fontWeight: 'bold', marginBottom: '1.5rem' }}>Complete University Management</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '1.5rem', borderRadius: '0.75rem', backdropFilter: 'blur(10px)' }}>
-                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem' }}>✨ For Everyone</h3>
-                <p style={{ opacity: 0.9, fontSize: '0.95rem' }}>Admin, Faculty, TA, or Student - Access role-specific features</p>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem', textDecoration: 'none' }}>✨ For Everyone</h3>
+                <p style={{ opacity: 0.9, fontSize: '0.95rem', textDecoration: 'none' }}>Admin, Faculty, TA, or Student - Access role-specific features</p>
               </div>
               <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '1.5rem', borderRadius: '0.75rem', backdropFilter: 'blur(10px)' }}>
-                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem' }}>🔒 Secure Access</h3>
-                <p style={{ opacity: 0.9, fontSize: '0.95rem' }}>Only admins can create accounts for secure account management</p>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem', textDecoration: 'none' }}>🔒 Secure Access</h3>
+                <p style={{ opacity: 0.9, fontSize: '0.95rem', textDecoration: 'none' }}>Only admins can create accounts for secure account management</p>
               </div>
               <div style={{ background: 'rgba(255, 255, 255, 0.1)', padding: '1.5rem', borderRadius: '0.75rem', backdropFilter: 'blur(10px)' }}>
-                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem' }}>⚡ Features</h3>
-                <ul style={{ opacity: 0.9, fontSize: '0.95rem', paddingLeft: '1.5rem' }}>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem', textDecoration: 'none' }}>⚡ Features</h3>
+                <ul style={{ opacity: 0.9, fontSize: '0.95rem', paddingLeft: '1.5rem', listStyle: 'disc', margin: '0' }}>
                   <li>Staff & Student Management</li>
                   <li>Course Catalog & Enrollment</li>
                   <li>Grade Dashboard</li>
