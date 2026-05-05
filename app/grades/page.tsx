@@ -46,7 +46,7 @@ export default function GradesPage() {
         const { data: studentData } = await supabase
           .from('students')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('profile_id', user.id)
           .single()
 
         if (studentData) {

@@ -5,9 +5,19 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Database Types
+// --- Database Types (Updated for New Schema) ---
+
+export interface Profile {
+  id: string // Links to auth.users.id
+  full_name: string
+  email: string
+  role: 'admin' | 'doctor' | 'ta' | 'student'
+  created_at: string
+}
+
 export interface Staff {
   id: string
+  profile_id: string // Updated from user_id
   name: string
   email: string
   role: 'Professor' | 'TA' | 'Admin'
@@ -18,6 +28,7 @@ export interface Staff {
 
 export interface Student {
   id: string
+  profile_id: string // Updated from user_id
   name: string
   email: string
   student_id: string
@@ -55,27 +66,24 @@ export interface Announcement {
   id: string
   title: string
   content: string
-  created_by: string
+  created_by: string // Profile ID
   created_at: string
-  updated_at: string
 }
 
 export interface Room {
   id: string
   name: string
-  type: 'Classroom' | 'Lab' | 'Seminar'
+  type: string
   capacity: number
   building: string
-  created_at: string
 }
 
 export interface RoomBooking {
   id: string
   room_id: string
-  booked_by: string
-  date: string
+  booked_by: string // Profile ID
+  booking_date: string
   start_time: string
   end_time: string
-  subject: string
   created_at: string
 }

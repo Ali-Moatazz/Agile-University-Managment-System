@@ -14,7 +14,7 @@ interface Subject {
   description: string
   type: 'Core' | 'Elective'
   created_by?: string
-  created_at: string
+  created_at: string // Removed the '?' to match SubjectCard's expectations
 }
 
 export default function SubjectsPage() {
@@ -24,6 +24,8 @@ export default function SubjectsPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  
+  // formData remains Partial because we don't have ID/Date when filling the form
   const [formData, setFormData] = useState<Partial<Subject>>({
     code: '',
     name: '',
@@ -33,7 +35,6 @@ export default function SubjectsPage() {
   })
   const [message, setMessage] = useState('')
 
-  // Check authorization
   useEffect(() => {
     if (!user || user.role !== 'admin') {
       router.push('/')
@@ -48,7 +49,8 @@ export default function SubjectsPage() {
     try {
       const { data, error } = await supabase
         .from('subjects')
-        .select('*')
+        // We select created_at so the 'Subject' type is fully satisfied
+        .select('id, code, name, credits, description, type, created_at') 
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -85,12 +87,12 @@ export default function SubjectsPage() {
         if (error) throw error
         setMessage('✓ Subject updated successfully!')
       } else {
-        // Check if code is unique
+        // Use select('*') to bypass potential 406 cache errors
         const { data: existing } = await supabase
           .from('subjects')
-          .select('id')
+          .select('*') 
           .eq('code', formData.code)
-          .single()
+          .maybeSingle() 
 
         if (existing) {
           setMessage('❌ Subject code already exists. Please use a unique code.')
@@ -105,7 +107,7 @@ export default function SubjectsPage() {
             credits: formData.credits,
             description: formData.description,
             type: formData.type,
-            created_by: user?.id
+            created_by: user?.id 
           }])
 
         if (error) throw error
@@ -116,9 +118,9 @@ export default function SubjectsPage() {
       setEditingId(null)
       setShowForm(false)
       fetchSubjects()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving subject:', error)
-      setMessage('❌ Failed to save subject')
+      setMessage(`❌ ${error.message || 'Failed to save subject'}`)
     }
   }
 
@@ -148,6 +150,7 @@ export default function SubjectsPage() {
 
   return (
     <main className="container">
+      {/* ... (Header remains the same) ... */}
       <div style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', padding: '2rem', borderRadius: '1rem', marginBottom: '2rem', color: 'white' }}>
         <h1 className="text-3xl font-bold mb-2">📚 Course Catalog Creator</h1>
         <p style={{ opacity: 0.9 }}>Create and manage course subjects for your university</p>
@@ -173,8 +176,6 @@ export default function SubjectsPage() {
             cursor: 'pointer',
             transition: 'all 0.3s ease'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'none'}
         >
           {showForm ? '✕ Cancel' : '+ Create Subject'}
         </button>
@@ -213,13 +214,7 @@ export default function SubjectsPage() {
                   type="text"
                   value={formData.code || ''}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.95rem',
-                    fontFamily: 'inherit'
-                  }}
+                  style={{ padding: '0.75rem 1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}
                   placeholder="e.g., CS101"
                   required
                 />
@@ -230,14 +225,8 @@ export default function SubjectsPage() {
                   type="text"
                   value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.95rem',
-                    fontFamily: 'inherit'
-                  }}
-                  placeholder="e.g., Introduction to Programming"
+                  style={{ padding: '0.75rem 1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}
+                  placeholder="e.g., Intro to Programming"
                   required
                 />
               </div>
@@ -247,14 +236,7 @@ export default function SubjectsPage() {
                   type="number"
                   value={formData.credits || 3}
                   onChange={(e) => setFormData({ ...formData, credits: parseInt(e.target.value) })}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.95rem',
-                    fontFamily: 'inherit'
-                  }}
-                  placeholder="3"
+                  style={{ padding: '0.75rem 1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}
                   min="1"
                   max="6"
                 />
@@ -264,13 +246,7 @@ export default function SubjectsPage() {
                 <select
                   value={formData.type || 'Core'}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as Subject['type'] })}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.95rem',
-                    fontFamily: 'inherit'
-                  }}
+                  style={{ padding: '0.75rem 1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}
                   required
                 >
                   <option value="Core">Core</option>
@@ -283,31 +259,12 @@ export default function SubjectsPage() {
               <textarea
                 value={formData.description || ''}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                style={{
-                  padding: '0.75rem 1rem',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '0.5rem',
-                  fontSize: '0.95rem',
-                  fontFamily: 'inherit',
-                  minHeight: '120px',
-                  resize: 'vertical'
-                }}
+                style={{ padding: '0.75rem 1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem', minHeight: '120px' }}
                 placeholder="Describe the subject..."
                 required
               />
             </div>
-            <button
-              type="submit"
-              style={{
-                background: '#f5576c',
-                color: 'white',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '0.5rem',
-                border: 'none',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
+            <button type="submit" style={{ background: '#f5576c', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', border: 'none', fontWeight: '600' }}>
               {editingId ? 'Update Subject' : 'Create Subject'}
             </button>
           </form>
@@ -316,32 +273,14 @@ export default function SubjectsPage() {
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-          <div style={{
-            width: '1rem',
-            height: '1rem',
-            border: '2px solid #e5e7eb',
-            borderTop: '2px solid #f5576c',
-            borderRadius: '50%',
-            animation: 'spin 0.6s linear infinite'
-          }}></div>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      ) : subjects.length === 0 ? (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '2rem',
-          textAlign: 'center'
-        }}>
-          <p style={{ color: '#6b7280' }}>No subjects found. Create one to get started!</p>
+          <div className="spinner"></div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
           {subjects.map((s) => (
             <SubjectCard
               key={s.id}
-              subject={s}
+              subject={s} // This will no longer error because s.created_at is guaranteed now
               onEdit={handleEdit}
               onDelete={handleDelete}
             />

@@ -47,8 +47,7 @@ export default function AdminRoomsPage() {
       const { data, error } = await supabase
         .from('rooms')
         .select('*')
-        .order('created_at', { ascending: false })
-
+        
       if (error) throw error
       setRooms(data || [])
     } catch (error) {

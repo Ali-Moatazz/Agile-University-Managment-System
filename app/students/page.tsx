@@ -8,7 +8,7 @@ import StudentCard from '@/components/StudentCard'
 
 interface Student {
   id: string
-  user_id?: string
+  profile_id: string // Fixed: Changed from user_id to match your schema
   name: string
   email: string
   student_id: string
@@ -21,7 +21,7 @@ interface StudentFormData extends Partial<Student> {
 }
 
 export default function StudentsPage() {
-  const { user } = useAuth()
+  const { user, createAccount } = useAuth(); // Declared once at the top
   const router = useRouter()
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
@@ -65,15 +65,17 @@ export default function StudentsPage() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!formData.name || !formData.email || !formData.student_id || !formData.major) {
-      setMessage('Please fill in all required fields')
-      return
+      setMessage('❌ Please fill in all required fields');
+      return;
     }
 
     try {
+      setLoading(true);
       if (editingId) {
+        // UPDATE EXISTING STUDENT
         const { error } = await supabase
           .from('students')
           .update({
@@ -82,79 +84,55 @@ export default function StudentsPage() {
             student_id: formData.student_id,
             major: formData.major
           })
-          .eq('id', editingId)
+          .eq('id', editingId);
 
-        if (error) throw error
-        setMessage('✓ Student updated successfully!')
+        if (error) throw error;
+        setMessage('✓ Student updated successfully!');
       } else {
-        // New student - create user account first
+        // CREATE NEW STUDENT
         if (!formData.password || formData.password.length < 6) {
-          setMessage('❌ Password must be at least 6 characters')
-          return
+          setMessage('❌ Password must be at least 6 characters');
+          setLoading(false);
+          return;
         }
 
-        // Check if email already exists in users table
-        const { data: existingUser } = await supabase
-          .from('users')
-          .select('id')
-          .eq('email', formData.email)
-          .single()
+        // Step 1: Create Account
+        const newUser = await createAccount(
+          formData.email!, 
+          formData.password!, 
+          formData.name!, 
+          'student'
+        );
 
-        if (existingUser) {
-          setMessage('❌ Email already registered')
-          return
+        if (newUser) {
+          // Step 2: Create student record using profile_id to match your schema
+          const { error: studentError } = await supabase
+            .from('students')
+            .insert([{
+              profile_id: newUser.id, // Fixed: user_id -> profile_id
+              name: formData.name,
+              email: formData.email,
+              student_id: formData.student_id,
+              major: formData.major
+            }]);
+            
+          if (studentError) throw studentError;
         }
 
-        // Check if student_id already exists
-        const { data: existingId } = await supabase
-          .from('students')
-          .select('id')
-          .eq('student_id', formData.student_id)
-          .single()
-
-        if (existingId) {
-          setMessage('❌ Student ID already exists')
-          return
-        }
-
-        // Create user account first
-        const { data: newUser, error: userError } = await supabase
-          .from('users')
-          .insert([{
-            email: formData.email,
-            password_hash: formData.password,
-            full_name: formData.name,
-            role: 'student'
-          }])
-          .select()
-          .single()
-
-        if (userError) throw new Error('Failed to create user account')
-
-        // Now create student record with user_id
-        const { error: studentError } = await supabase
-          .from('students')
-          .insert([{
-            user_id: newUser.id,
-            name: formData.name,
-            email: formData.email,
-            student_id: formData.student_id,
-            major: formData.major
-          }])
-
-        if (studentError) throw new Error('Failed to create student record')
-        setMessage('✓ Student added successfully!')
+        setMessage('✓ Student added successfully!');
       }
 
-      setFormData({ name: '', email: '', student_id: '', major: '', password: '' })
-      setEditingId(null)
-      setShowForm(false)
-      fetchStudents()
-    } catch (error) {
-      console.error('Error saving student:', error)
-      setMessage(error instanceof Error ? `❌ ${error.message}` : '❌ Failed to save student')
+      setFormData({ name: '', email: '', student_id: '', major: '', password: '' });
+      setEditingId(null);
+      setShowForm(false);
+      fetchStudents();
+    } catch (error: any) {
+      console.error('Error saving student:', error);
+      setMessage(error.message || '❌ Failed to save student');
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   const handleEdit = (item: Student) => {
     setFormData(item)

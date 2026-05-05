@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
+// 1. Define the User type to match your SQL 'profiles' table
 interface AuthUser {
   id: string
   email: string
@@ -13,29 +14,19 @@ interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null
   loading: boolean
-  login: (email: string, password: string, role: string) => Promise<void>
-  createAccount: (email: string, password: string, fullName: string, role: string, adminId: string) => Promise<void>
+  login: (email: string, password: string) => Promise<void>
+  // Changed to return any so the calling page can get the new user's ID
+  createAccount: (email: string, password: string, fullName: string, role: string) => Promise<any>
   logout: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Simple hash function (NOT for production - use bcrypt in real app)
-function simpleHash(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
-  }
-  return Math.abs(hash).toString(16)
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Check localStorage on mount
+  // Check localStorage on mount to keep the user logged in
   useEffect(() => {
     const savedUser = localStorage.getItem('unimanage_user')
     if (savedUser) {
@@ -49,97 +40,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false)
   }, [])
 
-  const login = async (email: string, password: string, role: string) => {
-    if (!email || !password) {
-      throw new Error('Email and password are required')
+  const login = async (email: string, password: string) => {
+    // 1. Log into Supabase Auth Service
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) throw error
+
+    // 2. Fetch the user's profile from your 'profiles' table
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single()
+
+    if (profileError || !profile) {
+      throw new Error('Profile not found in database. Contact admin.')
     }
 
-    try {
-      // Fetch user from Supabase only (no localStorage fallback)
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, email, full_name, role')
-        .eq('email', email)
-        .single()
-
-      if (error || !data) {
-        throw new Error('Account not found. Please create an account first.')
-      }
-
-      // In production, use bcrypt to compare passwords
-      // For now, we'll accept the login if user exists
-      const authUser: AuthUser = {
-        id: data.id,
-        email: data.email,
-        full_name: data.full_name,
-        role: data.role
-      }
-
-      setUser(authUser)
-      localStorage.setItem('unimanage_user', JSON.stringify(authUser))
-    } catch (error) {
-      throw error instanceof Error ? error : new Error('Login failed. Please check your credentials.')
+    const authUser: AuthUser = {
+      id: profile.id,
+      email: profile.email,
+      full_name: profile.full_name,
+      role: profile.role
     }
+
+    setUser(authUser)
+    localStorage.setItem('unimanage_user', JSON.stringify(authUser))
   }
 
-  const createAccount = async (email: string, password: string, fullName: string, role: string, adminId: string) => {
+  const createAccount = async (email: string, password: string, fullName: string, role: string) => {
     if (!email || !password || !fullName) {
       throw new Error('All fields are required')
     }
 
-    if (password.length < 6) {
-      throw new Error('Password must be at least 6 characters')
-    }
-
-    try {
-      // Verify admin exists
-      const { data: adminUser } = await supabase
-        .from('users')
-        .select('id, role')
-        .eq('id', adminId)
-        .single()
-
-      if (!adminUser || adminUser.role !== 'admin') {
-        throw new Error('Only admins can create accounts')
+    // 1. Create the Auth Login
+    // We pass metadata so your SQL TRIGGER handles the 'profiles' table insert
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          role: role.toLowerCase()
+        }
       }
+    })
 
-      // Check if user already exists
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single()
+    if (authError) throw authError
 
-      if (existingUser) {
-        throw new Error('Email already registered')
-      }
-
-      // Create new user in Supabase
-      const passwordHash = simpleHash(password + email) // Simple hash for demo
-      const { data, error } = await supabase
-        .from('users')
-        .insert([
-          {
-            email,
-            password_hash: passwordHash,
-            full_name: fullName,
-            role: role as any
-          }
-        ])
-        .select()
-        .single()
-
-      if (error || !data) {
-        throw new Error('Failed to create account. Please try again.')
-      }
-
-      return data
-    } catch (error) {
-      throw error instanceof Error ? error : new Error('Failed to create account')
-    }
+    // 2. Return the new user object
+    // This allows StudentsPage to use newUser.id for the 'students' table
+    return authData.user
   }
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut()
     setUser(null)
     localStorage.removeItem('unimanage_user')
   }

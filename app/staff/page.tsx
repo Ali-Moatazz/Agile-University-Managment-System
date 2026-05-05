@@ -2,20 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, Staff } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
 import StaffCard from '@/components/StaffCard'
 
-interface Staff {
-  id: string
-  user_id?: string
-  name: string
-  email: string
-  role: 'Professor' | 'TA' | 'Admin'
-  office_location: string
-  phone?: string
-  created_at: string
-}
+// interface Staff {
+//   id: string
+//   profile_id?: string
+//   name: string
+//   email: string
+//   role: 'Professor' | 'TA' | 'Admin'
+//   office_location: string
+//   phone?: string
+//   created_at: string
+// }
 
 interface StaffFormData extends Partial<Staff> {
   password?: string
@@ -67,89 +67,83 @@ export default function StaffPage() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  e.preventDefault();
 
-    if (!formData.name || !formData.email || !formData.office_location) {
-      setMessage('Please fill in all required fields')
-      return
-    }
+  if (!formData.name || !formData.email || !formData.office_location) {
+    setMessage('❌ Please fill in all required fields');
+    return;
+  }
 
-    try {
-      if (editingId) {
-        const { error } = await supabase
-          .from('staff')
-          .update({
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            office_location: formData.office_location,
-            phone: formData.phone
-          })
-          .eq('id', editingId)
+  try {
+    if (editingId) {
+      // Logic for editing existing staff
+      const { error } = await supabase
+        .from('staff')
+        .update({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          office_location: formData.office_location,
+          phone: formData.phone
+        })
+        .eq('id', editingId);
 
-        if (error) throw error
-        setMessage('✓ Staff updated successfully!')
-      } else {
-        // New staff - create user account first
-        if (!formData.password || formData.password.length < 6) {
-          setMessage('❌ Password must be at least 6 characters')
-          return
-        }
-
-        // Check if email already exists in users table
-        const { data: existingUser } = await supabase
-          .from('users')
-          .select('id')
-          .eq('email', formData.email)
-          .single()
-
-        if (existingUser) {
-          setMessage('❌ Email already registered')
-          return
-        }
-
-        // Map staff role to user role
-        const userRole = formData.role === 'Professor' ? 'doctor' : formData.role === 'TA' ? 'ta' : 'admin'
-
-        // Create user account first
-        const { data: newUser, error: userError } = await supabase
-          .from('users')
-          .insert([{
-            email: formData.email,
-            password_hash: formData.password,
-            full_name: formData.name,
-            role: userRole
-          }])
-          .select()
-          .single()
-
-        if (userError) throw new Error('Failed to create user account')
-
-        // Now create staff record with user_id
-        const { error: staffError } = await supabase
-          .from('staff')
-          .insert([{
-            user_id: newUser.id,
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            office_location: formData.office_location,
-            phone: formData.phone
-          }])
-
-        if (staffError) throw new Error('Failed to create staff record')
-        setMessage('✓ Staff added successfully!')
+      if (error) throw error;
+      setMessage('✓ Staff updated successfully!');
+    } else {
+      // --- NEW STAFF CREATION ---
+      
+      if (!formData.password || formData.password.length < 6) {
+        setMessage('❌ Password must be at least 6 characters');
+        return;
       }
 
-      setFormData({ name: '', email: '', role: 'Professor', office_location: '', phone: '', password: '' })
-      setEditingId(null)
-      setShowForm(false)
-      fetchStaff()
-    } catch (error) {
-      console.error('Error saving staff:', error)
-      setMessage(error instanceof Error ? `❌ ${error.message}` : '❌ Failed to save staff record')
+      // 1. Create the Authentication account in Supabase
+      // Note: We use signUp with metadata so the trigger fills the 'profiles' table
+      const { data, error: authError } = await supabase.auth.signUp({
+        email: formData.email!,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+            role: formData.role === 'Professor' ? 'doctor' : formData.role?.toLowerCase()
+          }
+        }
+      });
+
+      if (authError) throw authError;
+      if (!data.user) throw new Error("Failed to create auth user");
+
+      // This defines the variable that was missing!
+      const newUser = data.user; 
+
+      // 2. Create the detailed staff record linked to that Auth ID
+      const { error: staffError } = await supabase
+        .from('staff')
+        .insert([{
+          profile_id: newUser.id, // Links to the Auth ID we just created
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          office_location: formData.office_location,
+          phone: formData.phone
+        }]);
+
+      if (staffError) throw staffError;
+      setMessage('✓ Staff member added successfully!');
     }
+
+    // Reset form and refresh list
+    setFormData({ name: '', email: '', role: 'Professor', office_location: '', phone: '', password: '' });
+    setEditingId(null);
+    setShowForm(false);
+    fetchStaff(); // Refresh the directory list
+    
+  } catch (error: any) {
+    console.error('Error saving staff:', error);
+    setMessage(`❌ Error: ${error.message || 'Failed to save record'}`);
   }
+};
 
   const handleEdit = (item: Staff) => {
     setFormData(item)

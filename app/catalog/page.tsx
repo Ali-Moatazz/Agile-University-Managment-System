@@ -77,32 +77,33 @@ export default function CatalogPage() {
     }
 
     try {
-      // Get the student record for this user
+      // 1. Get the student record (using profile_id from your schema)
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('profile_id', user.id)
         .single()
 
       if (studentError || !studentData) {
-        setMessage('❌ Student record not found')
+        setMessage('❌ Student record not found. Contact admin.')
         return
       }
 
-      // Check if already enrolled
-      const { data: existingEnrollment } = await supabase
+      // 2. Check if already enrolled
+      // Using .select('*') is the safest way to bypass 406 cache errors
+      const { data: enrollments } = await supabase
         .from('enrollments')
-        .select('id')
+        .select('*')
         .eq('student_id', studentData.id)
         .eq('subject_id', subject.id)
-        .single()
 
-      if (existingEnrollment) {
+      if (enrollments && enrollments.length > 0) {
         setMessage('❌ You are already enrolled in this course')
         return
       }
 
-      const { error } = await supabase
+      // 3. If check passed (or was skipped by 406), proceed to insert
+      const { error: insertError } = await supabase
         .from('enrollments')
         .insert([
           {
@@ -111,11 +112,18 @@ export default function CatalogPage() {
           },
         ])
 
-      if (error) throw error
+      if (insertError) throw insertError
+      
       setMessage(`✓ Successfully enrolled in ${subject.name}!`)
-    } catch (error) {
+      
+    } catch (error: any) {
       console.error('Error enrolling:', error)
-      setMessage('❌ Failed to enroll in course')
+      // If it's a duplicate key error from the DB, show a nice message
+      if (error.code === '23505') {
+        setMessage('❌ You are already enrolled in this course')
+      } else {
+        setMessage('❌ Failed to enroll in course')
+      }
     }
   }
 
@@ -191,8 +199,8 @@ export default function CatalogPage() {
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
           <div style={{
-            width: '1rem',
-            height: '1rem',
+            width: '1.5rem',
+            height: '1.5rem',
             border: '2px solid #e5e7eb',
             borderTop: '2px solid #667eea',
             borderRadius: '50%',
@@ -208,7 +216,7 @@ export default function CatalogPage() {
           padding: '2rem',
           textAlign: 'center'
         }}>
-          <p style={{ color: '#6b7280' }}>No courses match your search. Try different keywords or filters!</p>
+          <p style={{ color: '#6b7280' }}>No courses match your search.</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>

@@ -3,238 +3,140 @@
 -- Run this SQL in your Supabase project
 -- ============================================
 
--- ============================================
--- 1. USERS TABLE (Authentication)
--- ============================================
-CREATE TABLE IF NOT EXISTS users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  full_name VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'doctor', 'ta', 'student')),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+-- 1. CLEANUP (Uncomment if you want a total reset)
+ DROP TABLE IF EXISTS room_bookings, rooms, announcements, grades, enrollments, subjects, students, staff, profiles CASCADE;
+
+-- 2. PROFILES TABLE (Automatic extension of Supabase Auth)
+CREATE TABLE public.profiles (
+  id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
+  full_name TEXT,
+  email TEXT UNIQUE NOT NULL,
+  role TEXT CHECK (role IN ('admin', 'doctor', 'ta', 'student')) DEFAULT 'student',
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_role ON users(role);
-
--- ============================================
--- 2. STAFF TABLE (Directory Management)
--- ============================================
-CREATE TABLE IF NOT EXISTS staff (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  role VARCHAR(50) NOT NULL CHECK (role IN ('Professor', 'TA', 'Admin')),
-  office_location VARCHAR(255) NOT NULL,
-  phone VARCHAR(20),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+-- 3. STAFF TABLE (Directory Management)
+CREATE TABLE public.staff (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  role TEXT CHECK (role IN ('Professor', 'TA', 'Admin')),
+  office_location TEXT,
+  phone TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_staff_email ON staff(email);
-CREATE INDEX idx_staff_user_id ON staff(user_id);
-
--- ============================================
--- 3. STUDENTS TABLE (Student Records)
--- ============================================
-CREATE TABLE IF NOT EXISTS students (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  student_id VARCHAR(50) UNIQUE NOT NULL,
-  major VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+-- 4. STUDENTS TABLE (Student Records)
+CREATE TABLE public.students (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  profile_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  student_id TEXT UNIQUE NOT NULL, -- e.g., '23P0419'
+  major TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_students_email ON students(email);
-CREATE INDEX idx_students_student_id ON students(student_id);
-CREATE INDEX idx_students_user_id ON students(user_id);
-
--- ============================================
--- 4. SUBJECTS TABLE (Course Profile Creator)
--- ============================================
-CREATE TABLE IF NOT EXISTS subjects (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  code VARCHAR(50) UNIQUE NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  credits INT NOT NULL CHECK (credits >= 1 AND credits <= 6),
-  description TEXT NOT NULL,
-  type VARCHAR(50) NOT NULL CHECK (type IN ('Core', 'Elective')),
-  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+-- 5. SUBJECTS TABLE (Course Catalog)
+CREATE TABLE public.subjects (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  credits INT CHECK (credits > 0),
+  description TEXT,
+  type TEXT CHECK (type IN ('Core', 'Elective')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_subjects_code ON subjects(code);
-CREATE INDEX idx_subjects_type ON subjects(type);
-CREATE INDEX idx_subjects_created_by ON subjects(created_by);
-
--- ============================================
--- 5. ENROLLMENTS TABLE (Course Enrollment)
--- ============================================
-CREATE TABLE IF NOT EXISTS enrollments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-  enrolled_date TIMESTAMP DEFAULT NOW(),
-  created_at TIMESTAMP DEFAULT NOW(),
+-- 6. ENROLLMENTS TABLE
+CREATE TABLE public.enrollments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  student_id UUID REFERENCES public.students(id) ON DELETE CASCADE,
+  subject_id UUID REFERENCES public.subjects(id) ON DELETE CASCADE,
+  enrolled_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(student_id, subject_id)
 );
 
-CREATE INDEX idx_enrollments_student_id ON enrollments(student_id);
-CREATE INDEX idx_enrollments_subject_id ON enrollments(subject_id);
-
--- ============================================
--- 6. GRADES TABLE (Grade Dashboard)
--- ============================================
-CREATE TABLE IF NOT EXISTS grades (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-  subject_id UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
-  score INT NOT NULL CHECK (score >= 0 AND score <= 100),
+-- 7. GRADES TABLE
+CREATE TABLE public.grades (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  student_id UUID REFERENCES public.students(id) ON DELETE CASCADE,
+  subject_id UUID REFERENCES public.subjects(id) ON DELETE CASCADE,
+  score INT CHECK (score >= 0 AND score <= 100),
   feedback TEXT,
-  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(student_id, subject_id)
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_grades_student_id ON grades(student_id);
-CREATE INDEX idx_grades_subject_id ON grades(subject_id);
-
--- ============================================
--- 7. ANNOUNCEMENTS TABLE (Post Announcements)
--- ============================================
-CREATE TABLE IF NOT EXISTS announcements (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(255) NOT NULL,
+-- 8. ANNOUNCEMENTS TABLE
+CREATE TABLE public.announcements (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  title TEXT NOT NULL,
   content TEXT NOT NULL,
-  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  created_by UUID REFERENCES public.profiles(id),
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_announcements_created_by ON announcements(created_by);
-CREATE INDEX idx_announcements_created_at ON announcements(created_at DESC);
-
--- ============================================
--- 8. ROOMS TABLE (Room Booking)
--- ============================================
-CREATE TABLE IF NOT EXISTS rooms (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(255) NOT NULL,
-  capacity INT NOT NULL CHECK (capacity > 0),
-  type VARCHAR(100) NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+-- 9. ROOMS & BOOKINGS
+CREATE TABLE public.rooms (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL,
+  capacity INT,
+  type TEXT,
+  building TEXT
 );
 
-CREATE INDEX idx_rooms_type ON rooms(type);
-
--- ============================================
--- 9. ROOM_BOOKINGS TABLE (Room Bookings)
--- ============================================
-CREATE TABLE IF NOT EXISTS room_bookings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
-  booked_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+CREATE TABLE public.room_bookings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE,
+  booked_by UUID REFERENCES public.profiles(id),
   booking_date DATE NOT NULL,
   start_time TIME NOT NULL,
   end_time TIME NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
   UNIQUE(room_id, booking_date, start_time)
 );
 
-CREATE INDEX idx_room_bookings_room_id ON room_bookings(room_id);
-CREATE INDEX idx_room_bookings_booked_by ON room_bookings(booked_by);
-CREATE INDEX idx_room_bookings_booking_date ON room_bookings(booking_date);
-
 -- ============================================
--- Enable RLS (Row Level Security)
--- ============================================
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE staff ENABLE ROW LEVEL SECURITY;
-ALTER TABLE students ENABLE ROW LEVEL SECURITY;
-ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
-ALTER TABLE enrollments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE grades ENABLE ROW LEVEL SECURITY;
-ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
-ALTER TABLE rooms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE room_bookings ENABLE ROW LEVEL SECURITY;
-
--- ============================================
--- RLS Policies
+-- AUTH AUTOMATION (The Trigger)
 -- ============================================
 
--- Users can only see their own profile
-CREATE POLICY "Users can read own data" ON users
-  FOR SELECT USING (auth.uid() = id);
-
--- Staff can be viewed by all (for directory)
-CREATE POLICY "Staff is publicly viewable" ON staff
-  FOR SELECT USING (true);
-
--- Students can be viewed by admins only
-CREATE POLICY "Students visible to admins" ON students
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'
-    )
+-- Function to automatically create a profile when a new user signs up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, email, role)
+  VALUES (
+    NEW.id, 
+    NEW.raw_user_meta_data->>'full_name', 
+    NEW.email, 
+    COALESCE(NEW.raw_user_meta_data->>'role', 'student')
   );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Subjects are publicly viewable
-CREATE POLICY "Subjects are publicly viewable" ON subjects
-  FOR SELECT USING (true);
+-- Trigger logic
+CREATE OR REPLACE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Enrollments visible to student and admins
-CREATE POLICY "Enrollments visible to student and admin" ON enrollments
+-- ============================================
+-- ROW LEVEL SECURITY (RLS) Policies
+-- ============================================
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.grades ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.announcements ENABLE ROW LEVEL SECURITY;
+
+-- Staff Directory is public
+CREATE POLICY "Public Read Staff" ON public.staff FOR SELECT USING (true);
+
+-- Grades: Student sees only their own; Doctor sees all
+CREATE POLICY "Grade Visibility" ON public.grades
   FOR SELECT USING (
-    student_id = (SELECT id FROM students WHERE user_id = auth.uid())
-    OR EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
-  );
-
--- Grades visible only to student and faculty/admin
-CREATE POLICY "Grades visible to student and admin" ON grades
-  FOR SELECT USING (
-    student_id = (SELECT id FROM students WHERE user_id = auth.uid())
-    OR EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin', 'doctor', 'ta'))
+    student_id IN (SELECT id FROM public.students WHERE profile_id = auth.uid())
+    OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'doctor', 'ta'))
   );
 
 -- Announcements are public
-CREATE POLICY "Announcements are public" ON announcements
-  FOR SELECT USING (true);
-
--- Rooms are public
-CREATE POLICY "Rooms are public" ON rooms
-  FOR SELECT USING (true);
-
--- Room bookings visible to booker and admins
-CREATE POLICY "Room bookings visible to booker and admin" ON room_bookings
-  FOR SELECT USING (
-    booked_by = auth.uid()
-    OR EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
-  );
-
--- ============================================
--- Insert Demo Data (Optional)
--- ============================================
-
--- Demo Admin User
-INSERT INTO users (email, password_hash, full_name, role) 
-VALUES ('admin@university.edu', 'hashed_password_123', 'Admin User', 'admin')
-ON CONFLICT (email) DO NOTHING;
-
--- Demo Doctor User
-INSERT INTO users (email, password_hash, full_name, role) 
-VALUES ('doctor@university.edu', 'hashed_password_123', 'Dr. John Smith', 'doctor')
-ON CONFLICT (email) DO NOTHING;
-
--- Demo Student User
-INSERT INTO users (email, password_hash, full_name, role) 
-VALUES ('student@university.edu', 'hashed_password_123', 'Jane Doe', 'student')
-ON CONFLICT (email) DO NOTHING;
+CREATE POLICY "Public Announcements" ON public.announcements FOR SELECT USING (true);

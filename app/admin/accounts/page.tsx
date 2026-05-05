@@ -10,7 +10,7 @@ interface User {
   email: string
   full_name: string
   role: 'admin' | 'doctor' | 'ta' | 'student'
-  created_at?: string
+  created_at?: string 
 }
 
 export default function AdminAccountsPage() {
@@ -43,7 +43,7 @@ export default function AdminAccountsPage() {
   const fetchUsers = async () => {
     try {
       const { data, error } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .order('created_at', { ascending: false })
 
@@ -71,7 +71,7 @@ export default function AdminAccountsPage() {
     }
 
     try {
-      await createAccount(formData.email, formData.password, formData.full_name, formData.role, user!.id)
+      await createAccount(formData.email, formData.password, formData.full_name, formData.role)
       setMessage('✓ Account created successfully!')
       setFormData({ email: '', password: '', full_name: '', role: 'student' })
       setShowForm(false)
@@ -85,7 +85,7 @@ export default function AdminAccountsPage() {
     if (confirm('Are you sure you want to delete this account? This action cannot be undone.')) {
       try {
         const { error } = await supabase
-          .from('users')
+          .from('profiles')
           .delete()
           .eq('id', userId)
 

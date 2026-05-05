@@ -9,9 +9,10 @@ interface Subject {
   id: string
   code: string
   name: string
-  credits: number
+  credits: number // Ensure this is number
   description: string
   type: 'Core' | 'Elective'
+  
 }
 
 export default function CoursesPage() {
@@ -42,7 +43,7 @@ export default function CoursesPage() {
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('profile_id', user.id)
         .single()
 
       if (studentError || !studentData) {
@@ -87,7 +88,7 @@ export default function CoursesPage() {
         const { data: studentData } = await supabase
           .from('students')
           .select('id')
-          .eq('user_id', user.id)
+          .eq('profile_id', user.id)
           .single()
 
         if (!studentData) {
