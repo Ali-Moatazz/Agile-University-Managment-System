@@ -36,7 +36,7 @@ export default function Navbar() {
     { href: '/faculty', label: '📊 Dashboard' },
     { href: '/catalog', label: '📚 Catalog' },
     { href: '/rooms', label: '🏢 Book Room' },
-    { href: '/grades', label: '📈 Manage Grades' },
+    { href: '/grades/manage', label: '📈 Manage Grades' },
     { href: '/announcements', label: '📢 Announcements' },
   ]
 

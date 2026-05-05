@@ -22,6 +22,7 @@ export interface Staff {
   email: string
   role: 'Professor' | 'TA' | 'Admin'
   office_location: string
+  assigned_subject?: string;
   phone?: string
   created_at: string
 }

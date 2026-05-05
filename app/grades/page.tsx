@@ -181,33 +181,27 @@ export default function GradesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {grades.map((grade) => {
+                    {grades.map((grade: any) => {
                       const status = getGradeStatus(grade.score)
                       return (
                         <tr key={grade.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
                           <td style={{ padding: '1rem', color: '#1f2937', fontWeight: '500' }}>
-                            {grade.subject_id}
-                          </td>
-                          <td style={{ padding: '1rem', fontSize: '1.125rem', fontWeight: 'bold', color: '#1f2937' }}>
-                            {grade.score}/100
+                            {grade.subject_id} {/* Ideally join this to get the name */}
                           </td>
                           <td style={{ padding: '1rem' }}>
-                            <span style={{
-                              background: status.color + '22',
-                              color: status.color,
-                              padding: '0.25rem 0.75rem',
-                              borderRadius: '0.25rem',
-                              fontSize: '0.75rem',
-                              fontWeight: '600'
-                            }}>
+                            <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                              Mid: {grade.mid_term}/25 | Proj: {grade.project}/30 <br/>
+                              Quiz: {grade.quizzes}/5 | Final: {grade.final_exam}/40
+                            </div>
+                            <strong style={{ fontSize: '1.1rem' }}>Total: {grade.score}/100</strong>
+                          </td>
+                          <td style={{ padding: '1rem' }}>
+                            <span style={{ background: status.color + '22', color: status.color, padding: '0.25rem 0.75rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: '600' }}>
                               {status.text}
                             </span>
                           </td>
                           <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
                             {grade.feedback || '-'}
-                          </td>
-                          <td style={{ padding: '1rem', fontSize: '0.875rem', color: '#6b7280' }}>
-                            {grade.created_at ? new Date(grade.created_at).toLocaleDateString() : '-'}
                           </td>
                         </tr>
                       )

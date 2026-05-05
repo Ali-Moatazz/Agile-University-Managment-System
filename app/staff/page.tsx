@@ -2,20 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, Staff } from '@/lib/supabase'
+import { supabase, Staff, Subject } from '@/lib/supabase' // Added Subject import
 import { useAuth } from '@/lib/auth-context'
 import StaffCard from '@/components/StaffCard'
-
-// interface Staff {
-//   id: string
-//   profile_id?: string
-//   name: string
-//   email: string
-//   role: 'Professor' | 'TA' | 'Admin'
-//   office_location: string
-//   phone?: string
-//   created_at: string
-// }
 
 interface StaffFormData extends Partial<Staff> {
   password?: string
@@ -25,6 +14,7 @@ export default function StaffPage() {
   const { user } = useAuth()
   const router = useRouter()
   const [staff, setStaff] = useState<Staff[]>([])
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]) // New state for dropdown
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -35,6 +25,7 @@ export default function StaffPage() {
     office_location: '',
     phone: '',
     password: '',
+    assigned_subject: '' // Initialize new field
   })
   const [message, setMessage] = useState('')
 
@@ -47,6 +38,7 @@ export default function StaffPage() {
 
   useEffect(() => {
     fetchStaff()
+    fetchAvailableSubjects() // Load subjects when page opens
   }, [])
 
   const fetchStaff = async () => {
@@ -66,84 +58,114 @@ export default function StaffPage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  if (!formData.name || !formData.email || !formData.office_location) {
-    setMessage('❌ Please fill in all required fields');
-    return;
+  // New function to get subjects for the dropdown
+  const fetchAvailableSubjects = async () => {
+    const { data } = await supabase.from('subjects').select('*').order('name');
+    if (data) setAvailableSubjects(data);
   }
 
-  try {
-    if (editingId) {
-      // Logic for editing existing staff
-      const { error } = await supabase
-        .from('staff')
-        .update({
-          name: formData.name,
-          email: formData.email,
-          role: formData.role,
-          office_location: formData.office_location,
-          phone: formData.phone
-        })
-        .eq('id', editingId);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-      if (error) throw error;
-      setMessage('✓ Staff updated successfully!');
-    } else {
-      // --- NEW STAFF CREATION ---
-      
-      if (!formData.password || formData.password.length < 6) {
-        setMessage('❌ Password must be at least 6 characters');
-        return;
-      }
-
-      // 1. Create the Authentication account in Supabase
-      // Note: We use signUp with metadata so the trigger fills the 'profiles' table
-      const { data, error: authError } = await supabase.auth.signUp({
-        email: formData.email!,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.name,
-            role: formData.role === 'Professor' ? 'doctor' : formData.role?.toLowerCase()
-          }
-        }
-      });
-
-      if (authError) throw authError;
-      if (!data.user) throw new Error("Failed to create auth user");
-
-      // This defines the variable that was missing!
-      const newUser = data.user; 
-
-      // 2. Create the detailed staff record linked to that Auth ID
-      const { error: staffError } = await supabase
-        .from('staff')
-        .insert([{
-          profile_id: newUser.id, // Links to the Auth ID we just created
-          name: formData.name,
-          email: formData.email,
-          role: formData.role,
-          office_location: formData.office_location,
-          phone: formData.phone
-        }]);
-
-      if (staffError) throw staffError;
-      setMessage('✓ Staff member added successfully!');
+    if (!formData.name || !formData.email || !formData.office_location) {
+      setMessage('❌ Please fill in all required fields');
+      return;
     }
 
-    // Reset form and refresh list
-    setFormData({ name: '', email: '', role: 'Professor', office_location: '', phone: '', password: '' });
-    setEditingId(null);
-    setShowForm(false);
-    fetchStaff(); // Refresh the directory list
-    
-  } catch (error: any) {
-    console.error('Error saving staff:', error);
-    setMessage(`❌ Error: ${error.message || 'Failed to save record'}`);
-  }
-};
+    try {
+      if (editingId) {
+        // Logic for editing existing staff
+        const { error } = await supabase
+          .from('staff')
+          .update({
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            office_location: formData.office_location,
+            phone: formData.phone,
+            assigned_subject: formData.assigned_subject // Update field
+          })
+          .eq('id', editingId);
+
+        if (error) throw error;
+
+        if (formData.assigned_subject) {
+          const selectedSub = availableSubjects.find(s => s.name === formData.assigned_subject);
+          if (selectedSub) {
+            // Use upsert so it updates if the link already exists
+            await supabase.from('doctor_subjects').upsert({
+              profile_id: formData.profile_id, 
+              subject_id: selectedSub.id
+            });
+          }
+        }
+        setMessage('✓ Staff updated successfully!');
+      } else {
+        // --- NEW STAFF CREATION ---
+        if (!formData.password || formData.password.length < 6) {
+          setMessage('❌ Password must be at least 6 characters');
+          return;
+        }
+
+        const { data, error: authError } = await supabase.auth.signUp({
+          email: formData.email!,
+          password: formData.password,
+          options: {
+            data: {
+              full_name: formData.name,
+              role: formData.role === 'Professor' ? 'doctor' : formData.role?.toLowerCase()
+            }
+          }
+        });
+
+        if (authError) throw authError;
+        if (!data.user) throw new Error("Failed to create auth user");
+
+        const newUser = data.user; 
+
+        // Insert including the subject name
+        const { error: staffError } = await supabase
+          .from('staff')
+          .insert([{
+            profile_id: newUser.id,
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            office_location: formData.office_location,
+            phone: formData.phone,
+            assigned_subject: formData.assigned_subject // Save the text name
+          }]);
+
+        if (staffError) throw staffError;
+
+        if (formData.assigned_subject) {
+          // We find the ID of the subject from our loaded 'availableSubjects' list
+          const selectedSub = availableSubjects.find(s => s.name === formData.assigned_subject);
+          
+          if (selectedSub) {
+            await supabase.from('doctor_subjects').insert({
+              profile_id: newUser.id, // The Doctor's ID
+              subject_id: selectedSub.id // The Subject's actual UUID
+            });
+          }
+        }
+
+        
+
+
+        setMessage('✓ Staff member added successfully!');
+      }
+
+      setFormData({ name: '', email: '', role: 'Professor', office_location: '', phone: '', password: '', assigned_subject: '' });
+      setEditingId(null);
+      setShowForm(false);
+      fetchStaff();
+      
+    } catch (error: any) {
+      console.error('Error saving staff:', error);
+      setMessage(`❌ Error: ${error.message || 'Failed to save record'}`);
+    }
+  };
 
   const handleEdit = (item: Staff) => {
     setFormData(item)
@@ -154,11 +176,7 @@ export default function StaffPage() {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this staff member?')) {
       try {
-        const { error } = await supabase
-          .from('staff')
-          .delete()
-          .eq('id', id)
-
+        const { error } = await supabase.from('staff').delete().eq('id', id)
         if (error) throw error
         setMessage('✓ Staff deleted successfully!')
         fetchStaff()
@@ -171,220 +189,82 @@ export default function StaffPage() {
 
   return (
     <main className="container">
+      {/* ... Header and Stats UI (Keep as is) ... */}
       <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '2rem', borderRadius: '1rem', marginBottom: '2rem', color: 'white' }}>
         <h1 className="text-3xl font-bold mb-2">👔 Staff Directory</h1>
         <p style={{ opacity: 0.9 }}>Manage and organize staff members across the university</p>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <p style={{ color: '#6b7280', fontSize: '0.95rem' }}>Total Staff: <strong style={{ color: '#667eea', fontSize: '1.25rem' }}>{staff.length}</strong></p>
-        </div>
-        <button
-          onClick={() => {
-            setShowForm(!showForm)
-            setEditingId(null)
-            setFormData({ name: '', email: '', role: 'Professor', office_location: '', phone: '', password: '' })
-          }}
-          style={{
-            background: showForm ? '#ef4444' : '#667eea',
-            color: 'white',
-            padding: '0.75rem 1.5rem',
-            borderRadius: '0.5rem',
-            border: 'none',
-            fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'none'}
-        >
+        <div><p style={{ color: '#6b7280' }}>Total Staff: <strong style={{ color: '#667eea' }}>{staff.length}</strong></p></div>
+        <button onClick={() => { setShowForm(!showForm); setEditingId(null); setFormData({ name: '', email: '', role: 'Professor', office_location: '', phone: '', password: '', assigned_subject: '' }); }} style={{ background: showForm ? '#ef4444' : '#667eea', color: 'white', padding: '0.75rem 1.5rem', borderRadius: '0.5rem', border: 'none', fontWeight: '600', cursor: 'pointer' }}>
           {showForm ? '✕ Cancel' : '+ Add Staff Member'}
         </button>
       </div>
 
-      {message && (
-        <div style={{
-          padding: '1rem 1.5rem',
-          borderRadius: '0.5rem',
-          marginBottom: '1.5rem',
-          background: message.includes('✓') ? '#d1fae5' : '#fee2e2',
-          color: message.includes('✓') ? '#065f46' : '#991b1b',
-          borderLeft: `4px solid ${message.includes('✓') ? '#10b981' : '#ef4444'}`
-        }}>
-          {message}
-        </div>
-      )}
+      {message && <div className="alert alert-success" style={{ marginBottom: '1.5rem' }}>{message}</div>}
 
       {showForm && (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          marginBottom: '2rem',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-        }}>
-          <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '1.5rem', color: '#1f2937' }}>
-            {editingId ? 'Edit Staff Member' : 'Add New Staff Member'}
-          </h3>
+        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '0.75rem', padding: '1.5rem', marginBottom: '2rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+          <h3>{editingId ? 'Edit Staff Member' : 'Add New Staff Member'}</h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <label style={{ fontWeight: '600', color: '#1f2937' }}>Name *</label>
-                <input
-                  type="text"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.95rem',
-                    fontFamily: 'inherit'
-                  }}
-                  placeholder="Full name"
-                  required
-                />
+              <div className="form-group">
+                <label className="form-label">Name *</label>
+                <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="form-input" required />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <label style={{ fontWeight: '600', color: '#1f2937' }}>Email *</label>
-                <input
-                  type="email"
-                  value={formData.email || ''}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.95rem',
-                    fontFamily: 'inherit'
-                  }}
-                  placeholder="email@university.edu"
-                  required
-                />
+              <div className="form-group">
+                <label className="form-label">Email *</label>
+                <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="form-input" required />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <label style={{ fontWeight: '600', color: '#1f2937' }}>Role *</label>
-                <select
-                  value={formData.role || 'Professor'}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value as Staff['role'] })}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.95rem',
-                    fontFamily: 'inherit'
-                  }}
-                  required
-                >
+              <div className="form-group">
+                <label className="form-label">Role *</label>
+                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value as any })} className="form-input" required>
                   <option value="Professor">Professor</option>
                   <option value="TA">TA</option>
                   <option value="Admin">Admin</option>
                 </select>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <label style={{ fontWeight: '600', color: '#1f2937' }}>Office Location *</label>
-                <input
-                  type="text"
-                  value={formData.office_location || ''}
-                  onChange={(e) => setFormData({ ...formData, office_location: e.target.value })}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.95rem',
-                    fontFamily: 'inherit'
-                  }}
-                  placeholder="e.g., Building A, Room 201"
-                  required
-                />
+              
+              {/* --- NEW DROPDOWN SECTION --- */}
+              <div className="form-group">
+                <label className="form-label">Assign Subject</label>
+                <select 
+                  value={formData.assigned_subject || ''} 
+                  onChange={(e) => setFormData({ ...formData, assigned_subject: e.target.value })} 
+                  className="form-input"
+                >
+                  <option value="">-- No Subject Assigned --</option>
+                  {availableSubjects.map((sub) => (
+                    <option key={sub.id} value={sub.name}>
+                      {sub.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <label style={{ fontWeight: '600', color: '#1f2937' }}>Phone</label>
-                <input
-                  type="tel"
-                  value={formData.phone || ''}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  style={{
-                    padding: '0.75rem 1rem',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '0.5rem',
-                    fontSize: '0.95rem',
-                    fontFamily: 'inherit'
-                  }}
-                  placeholder="(123) 456-7890"
-                />
+              
+              <div className="form-group">
+                <label className="form-label">Office Location *</label>
+                <input type="text" value={formData.office_location} onChange={(e) => setFormData({ ...formData, office_location: e.target.value })} className="form-input" required />
               </div>
               {!editingId && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <label style={{ fontWeight: '600', color: '#1f2937' }}>Password * (New Staff Only)</label>
-                  <input
-                    type="password"
-                    value={formData.password || ''}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    style={{
-                      padding: '0.75rem 1rem',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.95rem',
-                      fontFamily: 'inherit'
-                    }}
-                    placeholder="Min 6 characters"
-                    required={!editingId}
-                  />
+                <div className="form-group">
+                  <label className="form-label">Password *</label>
+                  <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="form-input" required />
                 </div>
               )}
             </div>
-            <button
-              type="submit"
-              style={{
-                background: '#667eea',
-                color: 'white',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '0.5rem',
-                border: 'none',
-                fontWeight: '600',
-                cursor: 'pointer'
-              }}
-            >
-              {editingId ? 'Update Staff' : 'Add Staff Member'}
-            </button>
+            <button type="submit" className="btn btn-primary">{editingId ? 'Update Staff' : 'Add Staff Member'}</button>
           </form>
         </div>
       )}
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-          <div style={{
-            width: '1rem',
-            height: '1rem',
-            border: '2px solid #e5e7eb',
-            borderTop: '2px solid #667eea',
-            borderRadius: '50%',
-            animation: 'spin 0.6s linear infinite'
-          }}></div>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      ) : staff.length === 0 ? (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '0.75rem',
-          padding: '2rem',
-          textAlign: 'center'
-        }}>
-          <p style={{ color: '#6b7280' }}>No staff members found. Create one to get started!</p>
-        </div>
+        <div className="flex-center p-8"><div className="spinner"></div></div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
           {staff.map((s) => (
-            <StaffCard
-              key={s.id}
-              staff={s}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+            <StaffCard key={s.id} staff={s} onEdit={handleEdit} onDelete={handleDelete} />
           ))}
         </div>
       )}
