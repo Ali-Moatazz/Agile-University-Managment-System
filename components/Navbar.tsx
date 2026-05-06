@@ -1,102 +1,61 @@
 'use client'
-
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 
 export default function Navbar() {
   const pathname = usePathname()
-  const router = useRouter()
   const { user, logout } = useAuth()
+  const router = useRouter()
 
-  // Don't show navbar on login/signup pages
-  if (pathname === '/' || !user) {
-    return null
-  }
+  if (pathname === '/' || !user) return null
 
-  const isActive = (path: string) => pathname === path ? 'active' : ''
-
-  const handleLogout = () => {
-    logout()
-    router.push('/')
-  }
-
-  // Role-based navigation
   const adminLinks = [
-    { href: '/admin', label: '📊 Dashboard' },
-    { href: '/admin/accounts', label: '👤 Manage Accounts' },
-    { href: '/admin/rooms', label: '🏢 Manage Rooms' },
-    { href: '/staff', label: '👔 Staff' },
-    { href: '/students', label: '👥 Students' },
-    { href: '/subjects', label: '📚 Subjects' },
-    { href: '/announcements/create', label: '📢 Create Announcement' },
+    { id: 'adm-dash', href: '/admin', label: '📊 Dashboard' },
+    { id: 'adm-acc', href: '/admin/accounts', label: '👤 Manage Accounts' },
+    { id: 'adm-rooms', href: '/admin/rooms', label: '🏢 Manage Rooms' },
+    { id: 'adm-staff', href: '/staff', label: '👔 Staff' },
+    { id: 'adm-stu', href: '/students', label: '👥 Students' },
+    { id: 'adm-subj', href: '/subjects', label: '📚 Subjects' },
+    { id: 'adm-ann', href: '/announcements/create', label: '📢 Create Announcement' },
   ]
 
-  const doctorTALinks = [
-    { href: '/faculty', label: '📊 Dashboard' },
-    { href: '/catalog', label: '📚 Catalog' },
-    { href: '/rooms', label: '🏢 Book Room' },
-    { href: '/grades/manage', label: '📈 Manage Grades' },
-    { href: '/announcements', label: '📢 Announcements' },
+  const doctorLinks = [
+    { id: 'doc-dash', href: '/faculty', label: '📊 Dashboard' },
+    { id: 'doc-cat', href: '/catalog', label: '📚 Catalog' },
+    { id: 'doc-room', href: '/rooms', label: '🏢 Book Room' },
+    { id: 'doc-grade', href: '/grades/manage', label: '📈 Manage Grades' },
+    { id: 'doc-ann', href: '/announcements', label: '📢 Announcements' },
   ]
 
   const studentLinks = [
-    { href: '/student', label: '📊 Dashboard' },
-    { href: '/catalog', label: '📚 Catalog' },
-    { href: '/courses', label: '📖 My Courses' },
-    { href: '/grades', label: '📊 My Grades' },
-    { href: '/announcements', label: '📢 Announcements' },
+    { id: 'stu-dash', href: '/student', label: '📊 Dashboard' },
+    { id: 'stu-cat', href: '/catalog', label: '📚 Catalog' },
+    { id: 'stu-course', href: '/courses', label: '📖 My Courses' },
+    { id: 'stu-grade', href: '/grades', label: '📊 My Grades' },
+    { id: 'stu-ann', href: '/announcements', label: '📢 Announcements' },
   ]
 
-  const getLinks = () => {
-    switch (user.role) {
-      case 'admin':
-        return adminLinks
-      case 'doctor':
-      case 'ta':
-        return doctorTALinks
-      case 'student':
-        return studentLinks
-      default:
-        return []
-    }
-  }
-
-  const links = getLinks()
+  const links = user.role === 'admin' ? adminLinks : 
+                (user.role === 'doctor' || user.role === 'ta') ? doctorLinks : 
+                studentLinks
 
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <Link href={user.role === 'admin' ? '/admin' : user.role === 'student' ? '/student' : '/faculty'} className="navbar-logo">
-          📚 UniManage
-        </Link>
+        <Link href="/" className="navbar-logo">📚 UniManage</Link>
         <ul className="navbar-nav">
           {links.map((link) => (
-            <li key={link.href}>
-              <Link href={link.href} className={isActive(link.href)}>
+            // FIX: Combining role and ID makes it impossible to have a duplicate key
+            <li key={`${user.role}-${link.id}`}>
+              <Link href={link.href} className={pathname === link.href ? 'active' : ''}>
                 {link.label}
               </Link>
             </li>
           ))}
-          <li style={{ marginLeft: 'auto' }}>
-            <span style={{ color: '#6b7280', marginRight: '1rem', display: 'inline-block' }}>
-              👤 {user.full_name} ({user.role})
-            </span>
-          </li>
-          <li>
-            <button
-              onClick={handleLogout}
-              style={{
-                background: 'transparent',
-                color: '#ef4444',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '0.95rem',
-                fontWeight: '600'
-              }}
-            >
-              Logout
-            </button>
+          <li style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>👤 {user.full_name}</span>
+            <button onClick={() => { logout(); router.push('/') }} className="btn btn-sm btn-danger">Logout</button>
           </li>
         </ul>
       </div>

@@ -19,13 +19,14 @@ export default function FacultyDashboard() {
     return null
   }
 
+  // FIX: Added unique IDs for each feature to ensure React keys never duplicate
   const facultyFeatures = [
-    { icon: '📚', title: 'Course Catalog', desc: 'Browse and view available courses', href: '/catalog', color: '#667eea' },
-    { icon: '🏢', title: 'Book Room', desc: 'Reserve classrooms or lab spaces', href: '/rooms', color: '#f5576c' },
-    { icon: '📈', title: 'Manage Grades', desc: 'View and manage student grades', href: '/grades', color: '#f093fb' },
-    { icon: '📢', title: 'Announcements', desc: 'View all system announcements', href: '/announcements', color: '#4facfe' },
-    { icon: '👥', title: 'Student Roster', desc: 'View enrolled students in courses', href: '/catalog', color: '#43e97b' },
-    { icon: '📊', title: 'Reports', desc: 'Generate course and grade reports', href: '/grades', color: '#fa709a' },
+    { id: 'f-cat', icon: '📚', title: 'Course Catalog', desc: 'Browse and view available courses', href: '/catalog', color: '#667eea' },
+    { id: 'f-room', icon: '🏢', title: 'Book Room', desc: 'Reserve classrooms or lab spaces', href: '/rooms', color: '#f5576c' },
+    { id: 'f-grade', icon: '📈', title: 'Manage Grades', desc: 'View and manage student grades', href: '/grades/manage', color: '#f093fb' }, // FIXED LINK
+    { id: 'f-ann', icon: '📢', title: 'Announcements', desc: 'View all system announcements', href: '/announcements', color: '#4facfe' },
+    { id: 'f-rost', icon: '👥', title: 'Student Roster', desc: 'View enrolled students in courses', href: '/catalog', color: '#43e97b' },
+    { id: 'f-rep', icon: '📊', title: 'Reports', desc: 'Generate course and grade reports', href: '/grades', color: '#fa709a' },
   ]
 
   return (
@@ -64,44 +65,36 @@ export default function FacultyDashboard() {
         <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1.5rem' }}>Resources & Tools</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
           {facultyFeatures.map((feature) => (
-            <Link href={feature.href} key={feature.href}>
-              <div style={{
-                background: 'white',
-                padding: '2rem',
-                borderRadius: '1rem',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                border: '1px solid #e5e7eb',
-                cursor: 'pointer',
-                transition: 'all 0.3s',
-                borderLeft: `4px solid ${feature.color}`
-              }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)'
-                  e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'none'
-                  e.currentTarget.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            // FIX: Using feature.id instead of feature.href as the key
+            <Link href={feature.href} key={feature.id} style={{ textDecoration: 'none' }}>
+              <div 
+                className="card" 
+                style={{
+                  background: 'white',
+                  padding: '2rem',
+                  borderRadius: '1rem',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  border: '1px solid #e5e7eb',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                  borderLeft: `4px solid ${feature.color}`,
+                  height: '100%'
                 }}
               >
                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{feature.icon}</div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem', textDecoration: 'none' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '0.5rem' }}>
                   {feature.title}
                 </h3>
-                <p style={{ color: '#6b7280', marginBottom: '1rem', textDecoration: 'none' }}>
+                <p style={{ color: '#6b7280', marginBottom: '1rem' }}>
                   {feature.desc}
                 </p>
-                <button style={{
-                  background: feature.color,
-                  color: 'white',
-                  padding: '0.75rem 1.5rem',
-                  borderRadius: '0.5rem',
-                  border: 'none',
+                <span style={{
+                  color: feature.color,
                   fontWeight: '600',
-                  cursor: 'pointer'
+                  fontSize: '0.9rem'
                 }}>
-                  Access →
-                </button>
+                  Access Tool →
+                </span>
               </div>
             </Link>
           ))}
@@ -109,7 +102,7 @@ export default function FacultyDashboard() {
 
         {/* Quick Tips */}
         <div style={{ marginTop: '3rem', background: 'white', padding: '2rem', borderRadius: '1rem', border: '1px solid #e5e7eb' }}>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem', textDecoration: 'none' }}>💡 Helpful Reminders</h3>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1f2937', marginBottom: '1rem' }}>💡 Helpful Reminders</h3>
           <ul style={{ color: '#6b7280', display: 'flex', flexDirection: 'column', gap: '0.75rem', listStyle: 'disc', paddingLeft: '1.5rem', margin: '0' }}>
             <li>Book rooms in advance for your lectures and office hours</li>
             <li>Enter grades promptly after assessments are completed</li>

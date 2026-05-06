@@ -45,7 +45,7 @@ export default function StaffPage() {
     try {
       const { data, error } = await supabase
         .from('staff')
-        .select('*')
+        .select('*, profile_id') // Ensure profile_id is fetched
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -66,7 +66,6 @@ export default function StaffPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (!formData.name || !formData.email || !formData.office_location) {
       setMessage('❌ Please fill in all required fields');
       return;
@@ -74,7 +73,7 @@ export default function StaffPage() {
 
     try {
       if (editingId) {
-        // Logic for editing existing staff
+        // 1. Update Staff Table
         const { error } = await supabase
           .from('staff')
           .update({
@@ -83,20 +82,19 @@ export default function StaffPage() {
             role: formData.role,
             office_location: formData.office_location,
             phone: formData.phone,
-            assigned_subject: formData.assigned_subject // Update field
+            assigned_subject: formData.assigned_subject
           })
           .eq('id', editingId);
-
         if (error) throw error;
 
+        // 2. Update/Create link in doctor_subjects (CRITICAL FOR DROPDOWN)
         if (formData.assigned_subject) {
           const selectedSub = availableSubjects.find(s => s.name === formData.assigned_subject);
-          if (selectedSub) {
-            // Use upsert so it updates if the link already exists
+          if (selectedSub && formData.profile_id) {
             await supabase.from('doctor_subjects').upsert({
               profile_id: formData.profile_id, 
               subject_id: selectedSub.id
-            });
+            }, { onConflict: 'profile_id, subject_id' });
           }
         }
         setMessage('✓ Staff updated successfully!');
@@ -119,40 +117,28 @@ export default function StaffPage() {
         });
 
         if (authError) throw authError;
-        if (!data.user) throw new Error("Failed to create auth user");
-
         const newUser = data.user; 
 
-        // Insert including the subject name
-        const { error: staffError } = await supabase
-          .from('staff')
-          .insert([{
-            profile_id: newUser.id,
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            office_location: formData.office_location,
-            phone: formData.phone,
-            assigned_subject: formData.assigned_subject // Save the text name
-          }]);
+        // Insert Staff
+        await supabase.from('staff').insert([{
+          profile_id: newUser!.id,
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          office_location: formData.office_location,
+          assigned_subject: formData.assigned_subject
+        }]);
 
-        if (staffError) throw staffError;
-
+        // Create Link for Dropdown
         if (formData.assigned_subject) {
-          // We find the ID of the subject from our loaded 'availableSubjects' list
           const selectedSub = availableSubjects.find(s => s.name === formData.assigned_subject);
-          
           if (selectedSub) {
             await supabase.from('doctor_subjects').insert({
-              profile_id: newUser.id, // The Doctor's ID
-              subject_id: selectedSub.id // The Subject's actual UUID
+              profile_id: newUser!.id,
+              subject_id: selectedSub.id
             });
           }
         }
-
-        
-
-
         setMessage('✓ Staff member added successfully!');
       }
 
@@ -160,10 +146,8 @@ export default function StaffPage() {
       setEditingId(null);
       setShowForm(false);
       fetchStaff();
-      
     } catch (error: any) {
-      console.error('Error saving staff:', error);
-      setMessage(`❌ Error: ${error.message || 'Failed to save record'}`);
+      setMessage(`❌ Error: ${error.message}`);
     }
   };
 
