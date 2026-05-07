@@ -20,6 +20,14 @@ export default function StaffCard({ staff, onEdit, onDelete }: StaffCardProps) {
         <p className="text-sm mb-2">
           <strong>Office:</strong> {staff.office_location}
         </p>
+        
+        
+        {staff.assigned_subject && (
+          <p className="text-sm mb-2" style={{ color: '#3b82f6', fontWeight: 'bold' }}>
+            📖 Teaching: {staff.assigned_subject}
+          </p>
+        )}
+        
         {staff.phone && (
           <p className="text-sm mb-2">
             <strong>Phone:</strong> {staff.phone}
